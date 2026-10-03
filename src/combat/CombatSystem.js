@@ -56,7 +56,12 @@ export class CombatSystem {
             player.attackHitEnemies.add(enemy);
             this.applyDamageToEnemy(enemy, attack);
             this.triggerHitFeedback(attack, enemy);
-            player.gainRage(attack.rageGain);
+            player.gainRage(attack.rageGain || 5);
+
+            // Blonde hero passive: Solar blessing heals on hit
+            if (player.characterId === 'blonde') {
+                player.heal(2);
+            }
         }
     }
 
@@ -83,7 +88,8 @@ export class CombatSystem {
     }
 
     applyDamageToEnemy(enemy, attack) {
-        enemy.takeDamage(attack.damage, attack.knockback, attack.hitStun, player.facing);
+        const mult = player.character?.stats?.damageMultiplier || 1;
+        enemy.takeDamage(attack.damage * mult, attack.knockback, attack.hitStun, player.facing);
     }
 
     applyDamageToPlayer(enemy) {

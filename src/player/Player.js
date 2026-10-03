@@ -1,17 +1,21 @@
 ﻿/**
- * VALORIA - Player Character (The Knight)
- * Animated pixel-art knight using the FreeKnight sprite pack.
+ * VALORIA - Multi-Hero Player System
+ * Supports 3 playable archetypes:
+ * 1. Sir Roland (The Knight / FreeKnight) - Heavy Tank, Rage, cannot climb ladders
+ * 2. Lady Sylvia (The Blonde Warrior) - Holy Magic, Swift Duelist, climbs ladders, heals on hit
+ * 3. Kaelen (The Brown Hair Warrior) - Phantom Assassin, Wind Magic, climbs ladders, double jump
  */
 
-import { inputManager, audioManager, camera, vfxManager, gameWorld, playerDied } from '../main.js';
+import { inputManager, audioManager, camera, vfxManager, gameWorld, playerDied, enemyManager } from '../main.js';
 import { PlayerStateMachine } from './PlayerStateMachine.js';
-import { getComboAttacks, createHeavyAttack, VALOR_STRIKE, IRON_BREAKER } from './playerAttacks.js';
+import { CHARACTERS } from './CharacterData.js';
+import { getComboAttacks, createHeavyAttack } from './playerAttacks.js';
 
 const STEERABLE_STATES = new Set(['Idle', 'Walk', 'Run', 'Jump', 'Fall']);
 const SKILL_FRICTION = 600;
 const DEATH_SCREEN_DELAY = 1.5;
 
-// FreeKnight sprite definitions (all frames are 120x80, centered around anchorX=55, anchorY=80)
+// FreeKnight animations configuration
 const KNIGHT_ANIMATIONS = {
     idle: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Idle.png', frames: 10, fps: 10, loop: true },
     run: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Run.png', frames: 10, fps: 14, loop: true },
@@ -27,24 +31,35 @@ const KNIGHT_ANIMATIONS = {
     death: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Death.png', frames: 10, fps: 8, loop: false },
 };
 
+// Global image cache
+const imageCache = {};
+function getImage(src) {
+    if (!imageCache[src]) {
+        const img = new Image();
+        img.src = src;
+        imageCache[src] = { img, loaded: false };
+        img.onload = () => { imageCache[src].loaded = true; };
+    }
+    return imageCache[src];
+}
+
 export class Player {
     constructor() {
         this.x = 400;
         this.y = 500;
-        // Hitbox dimensions that match the 2x scaled knight sprite
-        this.width = 44;
-        this.height = 76;
-
         this.vx = 0;
         this.vy = 0;
-
-        // 1 = right, -1 = left
         this.facing = 1;
 
         this.stateMachine = new PlayerStateMachine(this);
 
-        this.maxHealth = 100;
-        this.health = 100;
+        // Active character
+        this.characterId = 'knight';
+        this.character = CHARACTERS.knight;
+
+        // Attributes
+        this.maxHealth = 150;
+        this.health = 150;
         this.maxStamina = 100;
         this.stamina = 100;
         this.maxRage = 100;
@@ -54,7 +69,7 @@ export class Player {
         this.staminaRegenDelay = 0.6;
         this.staminaRegenTimer = 0;
 
-        this.moveSpeed = 280;
+        this.moveSpeed = 275;
         this.acceleration = 2000;
         this.airControl = 0.6;
         this.deceleration = 1500;
@@ -63,7 +78,17 @@ export class Player {
 
         this.grounded = true;
         this.groundY = 500;
+        this.currentPlatform = null;
 
+        // Double jump for agile hero
+        this.canDoubleJump = false;
+
+        // Ladder climbing
+        this.currentLadder = null;
+        this.climbSpeed = 180;
+        this.climbAnimProgress = 0;
+
+        // Combat
         this.comboCount = 0;
         this.comboTimer = 0;
         this.comboWindow = 0.35;
@@ -83,19 +108,20 @@ export class Player {
         this.heavyChargeMax = 1.0;
         this.isChargingHeavy = false;
 
+        // Skills
         this.skills = {
-            valorStrike: { cooldown: 0, maxCooldown: 4.0, cost: 0 },
-            ironBreaker: { cooldown: 0, maxCooldown: 8.0, cost: 0 },
-            valoriaRage: { cooldown: 0, maxCooldown: 15.0, cost: 0 }
+            skill1: { cooldown: 0, maxCooldown: 4.0 },
+            skill2: { cooldown: 0, maxCooldown: 7.0 },
+            skill3: { cooldown: 0, maxCooldown: 15.0 }
         };
 
+        // Ult / Rage mode
         this.isRaging = false;
         this.rageDuration = 0;
         this.rageMaxDuration = 6.0;
 
         this.hurtTimer = 0;
         this.hurtDuration = 0.3;
-        this.invulnerabilityTimer = 0;
 
         this.animTime = 0;
         this.hitStopTime = 0;
@@ -104,39 +130,68 @@ export class Player {
         this.deathTimer = 0;
         this.deathReported = false;
 
-        // Preload FreeKnight sprite sheets
-        this.sprites = {};
-        this.preloadSprites();
+        // Floating notifications
+        this.floatingTexts = [];
+
+        // Preload assets for all heroes
+        this.preloadAllAssets();
+        this.applyCharacter(this.characterId);
     }
 
-    preloadSprites() {
-        for (const [key, cfg] of Object.entries(KNIGHT_ANIMATIONS)) {
-            const img = new Image();
-            img.src = cfg.file;
-            this.sprites[key] = {
-                image: img,
-                frames: cfg.frames,
-                fps: cfg.fps,
-                loop: cfg.loop,
-                loaded: false
-            };
-            img.onload = () => {
-                this.sprites[key].loaded = true;
-            };
-            img.onerror = () => {
-                console.warn('Failed to load knight sprite:', cfg.file);
-            };
+    preloadAllAssets() {
+        // Knight
+        for (const cfg of Object.values(KNIGHT_ANIMATIONS)) {
+            getImage(cfg.file);
+        }
+        // Blonde
+        getImage('girl warior.png');
+        // Brown
+        getImage('Girl Warior brown hair/Warrior/SpriteSheet/Warrior_Sheet-Effect.png');
+        for (let i = 1; i <= 8; i++) {
+            getImage(`Girl Warior brown hair/Warrior/Individual Sprite/Ladder-Grab/Warrior-Ladder-Grab_${i}.png`);
         }
     }
 
+    setCharacter(characterId) {
+        if (!CHARACTERS[characterId]) return;
+        this.characterId = characterId;
+        this.character = CHARACTERS[characterId];
+        this.applyCharacter(characterId);
+    }
+
+    applyCharacter(characterId) {
+        const c = CHARACTERS[characterId] || CHARACTERS.knight;
+        this.character = c;
+        this.characterId = c.id;
+
+        this.width = c.width;
+        this.height = c.height;
+
+        this.maxHealth = c.stats.hp;
+        this.health = this.maxHealth;
+        this.moveSpeed = c.stats.speed;
+
+        this.skills = {
+            skill1: { cooldown: 0, maxCooldown: c.skills.skill1.cooldown },
+            skill2: { cooldown: 0, maxCooldown: c.skills.skill2.cooldown },
+            skill3: { cooldown: 0, maxCooldown: c.skills.skill3.cooldown }
+        };
+
+        this.isRaging = false;
+        this.rage = 0;
+    }
+
     init() {
-        this.groundY = gameWorld.floorY;
+        this.groundY = gameWorld ? gameWorld.floorY : 500;
         this.x = 400;
         this.y = this.groundY;
         this.vx = 0;
         this.vy = 0;
         this.facing = 1;
         this.grounded = true;
+        this.currentPlatform = null;
+        this.currentLadder = null;
+        this.canDoubleJump = false;
 
         this.health = this.maxHealth;
         this.stamina = this.maxStamina;
@@ -164,12 +219,24 @@ export class Player {
         this.hurtTimer = 0;
         this.hitStopTime = 0;
         this.animTime = 0;
+        this.floatingTexts = [];
 
         this.isDead = false;
         this.deathTimer = 0;
         this.deathReported = false;
 
         this.stateMachine.reset();
+    }
+
+    notify(text, color = '#ffd700') {
+        this.floatingTexts.push({
+            text,
+            color,
+            x: this.x,
+            y: this.y - this.height - 15,
+            life: 1.2,
+            maxLife: 1.2
+        });
     }
 
     update(dt) {
@@ -181,6 +248,14 @@ export class Player {
         if (this.hitStopTime > 0) {
             this.hitStopTime -= dt;
             return;
+        }
+
+        // Update floating texts
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const ft = this.floatingTexts[i];
+            ft.life -= dt;
+            ft.y -= 25 * dt;
+            if (ft.life <= 0) this.floatingTexts.splice(i, 1);
         }
 
         this.updateTimers(dt);
@@ -228,7 +303,7 @@ export class Player {
 
     updateResources(dt) {
         const state = this.stateMachine.currentState;
-        const canRegen = this.staminaRegenTimer <= 0 && state !== 'Dodge' && !this.isChargingHeavy;
+        const canRegen = this.staminaRegenTimer <= 0 && state !== 'Dodge' && state !== 'Climb' && !this.isChargingHeavy;
         if (canRegen && this.stamina < this.maxStamina) {
             this.stamina = Math.min(this.maxStamina, this.stamina + this.staminaRegenRate * dt);
         }
@@ -244,12 +319,20 @@ export class Player {
     }
 
     handleInput(dt) {
+        if (this.stateMachine.currentState === 'Climb') {
+            this.handleClimbing(dt);
+            return;
+        }
+
         if (this.isChargingHeavy) {
             this.updateHeavyCharge(dt);
             return;
         }
 
         if (this.stateMachine.isLocked()) return;
+
+        // Check for ladder interaction
+        if (this.checkLadderTrigger()) return;
 
         if (STEERABLE_STATES.has(this.stateMachine.currentState)) {
             this.handleMovement(dt);
@@ -258,9 +341,105 @@ export class Player {
         if (inputManager.isAttackPressed()) this.attack();
         if (inputManager.isHeavyAttackPressed()) this.startHeavyAttack();
         if (inputManager.isDodgePressed()) this.dodge();
-        if (inputManager.isSkill1Pressed()) this.useSkill('valorStrike');
-        if (inputManager.isSkill2Pressed()) this.useSkill('ironBreaker');
-        if (inputManager.isSkill3Pressed()) this.useSkill('valoriaRage');
+
+        if (inputManager.isSkill1Pressed()) this.useSkill('skill1');
+        if (inputManager.isSkill2Pressed()) this.useSkill('skill2');
+        if (inputManager.isSkill3Pressed()) this.useSkill('skill3');
+    }
+
+    checkLadderTrigger() {
+        if (!gameWorld?.ladders) return false;
+
+        const vInput = inputManager.getVerticalInput();
+        if (vInput === 0) return false;
+
+        const ladder = gameWorld.ladders.find(l =>
+            Math.abs(this.x - l.x) < 18 &&
+            this.y >= l.topY - 6 &&
+            this.y <= l.bottomY + 6
+        );
+
+        if (!ladder) return false;
+
+        // Only the two girl warriors can climb ladders!
+        if (!this.character.canClimb) {
+            if (inputManager.isUpPressed()) {
+                this.notify('Armor too heavy to climb!', '#ffaa44');
+                audioManager.playSFX('sword_impact_heavy');
+            }
+            return false;
+        }
+
+        // Agile hero begins climbing
+        this.currentLadder = ladder;
+        this.x = ladder.x;
+        this.vx = 0;
+        this.vy = 0;
+        this.grounded = false;
+        this.currentPlatform = null;
+        this.stateMachine.setState('Climb');
+        return true;
+    }
+
+    handleClimbing(dt) {
+        const ladder = this.currentLadder;
+        if (!ladder) {
+            this.stateMachine.setState('Fall');
+            return;
+        }
+
+        const vInput = inputManager.getVerticalInput();
+        const hInput = inputManager.getHorizontalInput();
+
+        // Horizontal movement immediately steps off the ladder
+        if (hInput !== 0) {
+            this.currentLadder = null;
+            this.vx = hInput * this.moveSpeed * 0.6;
+            this.stateMachine.setState('Fall');
+            return;
+        }
+
+        this.vx = 0;
+        this.vy = 0;
+
+        if (vInput !== 0) {
+            this.y += vInput * this.climbSpeed * dt;
+            this.climbAnimProgress += dt * 7;
+        }
+
+        // Jump off ladder
+        if (inputManager.isJumpJustPressed()) {
+            this.currentLadder = null;
+            this.vy = -this.jumpForce * 0.85;
+            this.vx = this.facing * this.moveSpeed * 0.6;
+            this.stateMachine.setState('Jump');
+            audioManager.playSFX('player_jump');
+            return;
+        }
+
+        // Reached top platform
+        if (this.y <= ladder.topY) {
+            this.y = ladder.topY;
+            this.vy = 0;
+            this.grounded = true;
+            this.currentLadder = null;
+            this.currentPlatform = gameWorld?.platforms?.find(p => Math.abs(p.y - ladder.topY) < 5) || null;
+            this.stateMachine.setState('Idle');
+            audioManager.playSFX('player_land');
+            return;
+        }
+
+        // Reached ground floor
+        if (this.y >= ladder.bottomY) {
+            this.y = gameWorld.floorY;
+            this.vy = 0;
+            this.grounded = true;
+            this.currentLadder = null;
+            this.currentPlatform = null;
+            this.stateMachine.setState('Idle');
+            audioManager.playSFX('player_land');
+            return;
+        }
     }
 
     handleMovement(dt) {
@@ -272,7 +451,7 @@ export class Player {
             const turningAround = this.vx * moveDir < 0;
             this.vx += moveDir * accel * (turningAround ? 1.5 : 1) * dt;
 
-            const maxSpeed = this.moveSpeed * (this.isRaging ? 1.2 : 1);
+            const maxSpeed = this.moveSpeed * (this.isRaging ? 1.25 : 1);
             this.vx = Math.max(-maxSpeed, Math.min(maxSpeed, this.vx));
 
             if (this.grounded && this.stateMachine.currentState === 'Idle') {
@@ -285,7 +464,19 @@ export class Player {
             }
         }
 
-        if (inputManager.isJumpJustPressed()) this.jump();
+        // Platform drop-through: Down + Jump drops below elevated platform
+        if (inputManager.isDownPressed() && inputManager.isJumpJustPressed() && this.currentPlatform) {
+            this.y += 10;
+            this.grounded = false;
+            this.currentPlatform = null;
+            this.groundY = gameWorld.floorY;
+            this.stateMachine.setState('Fall');
+            return;
+        }
+
+        if (inputManager.isJumpJustPressed()) {
+            this.jump();
+        }
     }
 
     applyFriction(amount, dt) {
@@ -294,20 +485,33 @@ export class Player {
     }
 
     jump() {
-        if (!this.grounded || this.stamina < 10) return;
-        if (!this.stateMachine.canTransition('Jump')) return;
+        if (this.grounded) {
+            if (this.stamina < 10) return;
+            if (!this.stateMachine.canTransition('Jump')) return;
 
-        this.grounded = false;
-        this.vy = -this.jumpForce;
-        this.spendStamina(10);
-        this.stateMachine.setState('Jump');
-        audioManager.playSFX('player_jump');
-        vfxManager.createJumpDust(this.x, this.y);
+            this.grounded = false;
+            this.vy = -this.jumpForce;
+            this.spendStamina(10);
+            this.canDoubleJump = (this.characterId === 'brown');
+            this.stateMachine.setState('Jump');
+            audioManager.playSFX('player_jump');
+            vfxManager.createJumpDust(this.x, this.y);
+        } else if (this.canDoubleJump) {
+            // Brown hair ninja double jump!
+            this.canDoubleJump = false;
+            this.vy = -this.jumpForce * 0.9;
+            this.spendStamina(10);
+            this.stateMachine.setState('Jump');
+            audioManager.playSFX('player_jump');
+            vfxManager.createJumpDust(this.x, this.y);
+            this.notify('Double Jump!', '#c084fc');
+        }
     }
 
     onLanded() {
         vfxManager.createLandingDust(this.x, this.y);
         audioManager.playSFX('player_land');
+        if (this.characterId === 'brown') this.canDoubleJump = true;
     }
 
     attack() {
@@ -315,8 +519,10 @@ export class Player {
         if (!this.grounded) return;
         if (sm.currentState !== 'Attack' && !sm.canTransition('Attack')) return;
 
+        // Knight has 3-hit combo, girl warriors have crisp 2-hit basic combo
+        const maxCombo = this.characterId === 'knight' ? 3 : 2;
         const continuingCombo = this.comboTimer > 0 && this.comboCount > 0;
-        this.comboCount = continuingCombo ? (this.comboCount % 4) + 1 : 1;
+        this.comboCount = continuingCombo ? (this.comboCount % maxCombo) + 1 : 1;
         this.executeAttack();
     }
 
@@ -328,7 +534,7 @@ export class Player {
         this.stateMachine.setState('Attack');
         this.stateMachine.setAttackTiming(startup, active, recovery);
         this.attackHitEnemies.clear();
-        this.vx = this.facing * this.currentAttack.moveForce;
+        this.vx = this.facing * this.currentAttack.moveForce * 0.8;
 
         this.comboTimer = startup + active + recovery + this.comboWindow;
 
@@ -391,23 +597,42 @@ export class Player {
         this.vx = this.dodgeDirection * this.dodgeSpeed;
         audioManager.playSFX('player_dodge');
         vfxManager.createDodgeTrail(this);
+
+        // Brown hair hero leaves phantom decoy on dodge
+        if (this.characterId === 'brown') {
+            vfxManager.createPhantomBlink(this, this.x, this.y, this.x, this.y);
+        }
     }
 
     onDodgeEnd() {
         this.vx = this.dodgeDirection * this.moveSpeed * 0.4;
     }
 
-    useSkill(skillName) {
-        const skill = this.skills[skillName];
-        if (skill.cooldown > 0) return;
+    // ========================================================================
+    // HERO SKILLS DISPATCHER
+    // ========================================================================
+    useSkill(slotKey) {
+        const skill = this.skills[slotKey];
+        if (!skill || skill.cooldown > 0) return;
         if (!this.grounded || !this.stateMachine.canTransition('SkillCast')) return;
-        if (skillName === 'valoriaRage' && (this.rage < this.maxRage || this.isRaging)) return;
+
+        if (slotKey === 'skill3' && this.rage < this.maxRage && !this.isRaging) return;
 
         skill.cooldown = skill.maxCooldown;
 
-        if (skillName === 'valorStrike') this.useValorStrike();
-        else if (skillName === 'ironBreaker') this.useIronBreaker();
-        else if (skillName === 'valoriaRage') this.useValoriaRage();
+        if (this.characterId === 'knight') {
+            if (slotKey === 'skill1') this.useValorStrike();
+            else if (slotKey === 'skill2') this.useIronBreaker();
+            else if (slotKey === 'skill3') this.useValoriaRage();
+        } else if (this.characterId === 'blonde') {
+            if (slotKey === 'skill1') this.useSolarPiercer();
+            else if (slotKey === 'skill2') this.useRadiantTempest();
+            else if (slotKey === 'skill3') this.useDawnOfJudgment();
+        } else if (this.characterId === 'brown') {
+            if (slotKey === 'skill1') this.usePhantomBlink();
+            else if (slotKey === 'skill2') this.useCycloneBlade();
+            else if (slotKey === 'skill3') this.useEclipseExecution();
+        }
     }
 
     beginSkill(attack) {
@@ -417,23 +642,39 @@ export class Player {
         if (attack) {
             this.stateMachine.setAttackTiming(attack.startup, attack.active, attack.recovery);
         } else {
-            this.stateMachine.setAttackTiming(0, 0, 0.35);
+            this.stateMachine.setAttackTiming(0, 0, 0.45);
         }
     }
 
+    // --- Knight Skills ---
     useValorStrike() {
-        this.beginSkill({ ...VALOR_STRIKE });
-        this.vx = this.facing * 500;
+        this.beginSkill({
+            id: 'valor_strike',
+            damage: 40 * this.character.stats.damageMultiplier,
+            startup: 0.1, active: 0.25, recovery: 0.2,
+            hitbox: { x: 75, y: -35, width: 140, height: 50 },
+            knockback: 420, hitStun: 0.5, hitStop: 50, moveForce: 380,
+            swingSound: 'valor_strike', impactSound: 'sword_impact_heavy', screenShake: 'heavy', rageGain: 15
+        });
+        this.vx = this.facing * 420;
         audioManager.playSFX('valor_strike');
         vfxManager.createValorStrike(this);
+        camera.shakeMedium();
     }
 
     useIronBreaker() {
-        this.beginSkill({ ...IRON_BREAKER });
+        this.beginSkill({
+            id: 'iron_breaker',
+            damage: 65 * this.character.stats.damageMultiplier,
+            startup: 0.35, active: 0.3, recovery: 0.4,
+            hitbox: { x: 30, y: -25, width: 180, height: 75 },
+            knockback: 550, hitStun: 0.8, hitStop: 80, moveForce: 0,
+            swingSound: 'iron_breaker', impactSound: 'sword_impact_heavy', screenShake: 'heavy', rageGain: 20
+        });
         this.vx = 0;
         audioManager.playSFX('iron_breaker');
         vfxManager.createIronBreaker(this);
-        camera.impactZoom(0.15, 0.3);
+        camera.impactZoom(0.2, 0.35);
     }
 
     useValoriaRage() {
@@ -443,13 +684,130 @@ export class Player {
         this.beginSkill(null);
         audioManager.playSFX('valoria_rage_start');
         vfxManager.createRageAura(this);
-        camera.shakeMedium();
+        camera.shakeHeavy();
+        this.notify('VALORIA RAGE!', '#ff4400');
     }
 
     endRage() {
         this.isRaging = false;
         audioManager.playSFX('valoria_rage_end');
-        vfxManager.removeRageAura(this);
+        vfxManager.removeRageAura();
+    }
+
+    // --- Blonde Warrior Skills ---
+    useSolarPiercer() {
+        this.beginSkill({
+            id: 'solar_piercer',
+            damage: 48 * this.character.stats.damageMultiplier,
+            startup: 0.08, active: 0.22, recovery: 0.2,
+            hitbox: { x: 120, y: -35, width: 260, height: 45 },
+            knockback: 350, hitStun: 0.45, hitStop: 40, moveForce: 450,
+            swingSound: 'sword_swing_heavy', impactSound: 'sword_impact_metal', screenShake: 'medium', rageGain: 15
+        });
+        this.vx = this.facing * 480;
+        audioManager.playSFX('sword_swing_heavy');
+        vfxManager.createSolarPiercer(this);
+        camera.shakeLight();
+        this.heal(8);
+        this.notify('+8 HP (Solar Blessing)', '#ffd700');
+    }
+
+    useRadiantTempest() {
+        this.beginSkill({
+            id: 'radiant_tempest',
+            damage: 60 * this.character.stats.damageMultiplier,
+            startup: 0.15, active: 0.45, recovery: 0.3,
+            hitbox: { x: 0, y: -35, width: 220, height: 90 },
+            knockback: 400, hitStun: 0.6, hitStop: 50, moveForce: 60,
+            swingSound: 'sword_swing_heavy', impactSound: 'sword_impact_heavy', screenShake: 'medium', rageGain: 20
+        });
+        audioManager.playSFX('sword_swing_heavy');
+        vfxManager.createRadiantTempest(this);
+        camera.impactZoom(0.12, 0.25);
+    }
+
+    useDawnOfJudgment() {
+        this.rage = 0;
+        this.beginSkill({
+            id: 'dawn_judgment',
+            damage: 110 * this.character.stats.damageMultiplier,
+            startup: 0.2, active: 0.8, recovery: 0.35,
+            hitbox: { x: 80, y: -40, width: 450, height: 120 },
+            knockback: 600, hitStun: 0.9, hitStop: 90, moveForce: 0,
+            swingSound: 'sword_swing_heavy', impactSound: 'sword_impact_heavy', screenShake: 'heavy', rageGain: 0
+        });
+        this.vy = -260; // Leaps gracefully into the air
+        audioManager.playSFX('valoria_rage_start');
+        vfxManager.createDawnOfJudgment(this);
+        camera.shakeHeavy();
+        this.heal(25);
+        this.notify('DAWN OF JUDGMENT!', '#ffe066');
+    }
+
+    // --- Brown Hair Warrior Skills ---
+    usePhantomBlink() {
+        const startX = this.x;
+        const startY = this.y;
+
+        // Teleport behind nearest enemy or forward 220px
+        let targetX = this.x + this.facing * 220;
+        const targetEnemy = enemyManager?.enemies?.find(e => !e.isDead && Math.abs(e.x - this.x) < 260);
+        if (targetEnemy) {
+            targetX = targetEnemy.x + this.facing * 45;
+        }
+
+        targetX = gameWorld.clampX(targetX, this.width / 2);
+        this.x = targetX;
+
+        this.beginSkill({
+            id: 'phantom_blink',
+            damage: 55 * this.character.stats.damageMultiplier,
+            startup: 0.05, active: 0.2, recovery: 0.15,
+            hitbox: { x: 0, y: -35, width: 140, height: 60 },
+            knockback: 300, hitStun: 0.5, hitStop: 45, moveForce: 0,
+            swingSound: 'player_dodge', impactSound: 'sword_impact_heavy', screenShake: 'medium', rageGain: 15
+        });
+
+        audioManager.playSFX('player_dodge');
+        vfxManager.createPhantomBlink(this, startX, startY, this.x, this.y);
+        camera.shakeLight();
+        this.notify('Shadow Strike!', '#c084fc');
+    }
+
+    useCycloneBlade() {
+        this.beginSkill({
+            id: 'cyclone_blade',
+            damage: 65 * this.character.stats.damageMultiplier,
+            startup: 0.12, active: 0.35, recovery: 0.25,
+            hitbox: { x: 60, y: -35, width: 180, height: 80 },
+            knockback: 480, hitStun: 0.65, hitStop: 60, moveForce: 240,
+            swingSound: 'sword_swing_heavy', impactSound: 'sword_impact_heavy', screenShake: 'medium', rageGain: 20
+        });
+        this.vy = -280; // Aerial spinning rise
+        this.vx = this.facing * 260;
+        audioManager.playSFX('sword_swing_heavy');
+        vfxManager.createCycloneBlade(this);
+    }
+
+    useEclipseExecution() {
+        this.rage = 0;
+        let targetX = this.x + this.facing * 70;
+        const targetEnemy = enemyManager?.enemies?.find(e => !e.isDead && Math.abs(e.x - this.x) < 220);
+        if (targetEnemy) targetX = targetEnemy.x;
+
+        this.beginSkill({
+            id: 'eclipse_execution',
+            damage: 130 * this.character.stats.damageMultiplier,
+            startup: 0.15, active: 0.6, recovery: 0.3,
+            hitbox: { x: 0, y: -35, width: 250, height: 100 },
+            knockback: 700, hitStun: 1.0, hitStop: 100, moveForce: 0,
+            swingSound: 'sword_swing_heavy', impactSound: 'sword_impact_heavy', screenShake: 'heavy', rageGain: 0
+        });
+
+        audioManager.playSFX('sword_impact_heavy');
+        vfxManager.createEclipseExecution(this, targetX, this.y);
+        camera.shakeHeavy();
+        this.notify('ECLIPSE EXECUTION!', '#9333ea');
     }
 
     takeDamage(amount, knockbackX = 0, knockbackY = 0) {
@@ -483,25 +841,65 @@ export class Player {
         vfxManager.createPlayerDeath(this);
     }
 
-    heal(amount) { this.health = Math.min(this.maxHealth, this.health + amount); }
-    gainRage(amount) { if (!this.isRaging) this.rage = Math.min(this.maxRage, this.rage + amount); }
+    heal(amount) {
+        this.health = Math.min(this.maxHealth, this.health + amount);
+    }
+
+    gainRage(amount) {
+        if (!this.isRaging) {
+            this.rage = Math.min(this.maxRage, this.rage + amount);
+        }
+    }
 
     applyPhysics(dt) {
         const state = this.stateMachine.currentState;
+
+        if (state === 'Climb') {
+            // Climbing completely overrides standard platform gravity
+            return;
+        }
+
         if (this.grounded && !STEERABLE_STATES.has(state) && state !== 'Dodge') {
             this.applyFriction(state === 'SkillCast' ? SKILL_FRICTION : this.deceleration, dt);
         }
 
-        if (!this.grounded) this.vy += this.gravity * dt;
+        if (!this.grounded) {
+            this.vy += this.gravity * dt;
+        }
+
+        const prevY = this.y;
         this.x += this.vx * dt;
         this.y += this.vy * dt;
 
-        if (this.y >= this.groundY) {
-            this.y = this.groundY;
-            this.vy = 0;
-            this.grounded = true;
-        } else {
-            this.grounded = false;
+        // Platform detection (landing on elevated ramparts)
+        let onPlatform = false;
+        if (gameWorld?.platforms) {
+            for (const p of gameWorld.platforms) {
+                if (p.y >= gameWorld.floorY) continue; // ground handled separately
+                const withinX = (this.x >= p.x - 6 && this.x <= p.x + p.width + 6);
+                const landing = prevY <= p.y + 6 && this.y >= p.y && this.vy >= 0;
+                const staying = this.currentPlatform === p && Math.abs(this.y - p.y) < 6;
+
+                if (withinX && (landing || staying)) {
+                    this.y = p.y;
+                    this.vy = 0;
+                    this.grounded = true;
+                    this.currentPlatform = p;
+                    onPlatform = true;
+                    break;
+                }
+            }
+        }
+
+        if (!onPlatform) {
+            this.currentPlatform = null;
+            if (this.y >= gameWorld.floorY) {
+                this.y = gameWorld.floorY;
+                this.vy = 0;
+                this.grounded = true;
+            } else {
+                this.grounded = false;
+            }
         }
 
         const clampedX = gameWorld.clampX(this.x, this.width / 2);
@@ -511,90 +909,11 @@ export class Player {
         }
     }
 
-    // Resolves current animation sheet and frame based on player state
-    getAnimation() {
-        const sm = this.stateMachine;
-        const state = sm.currentState;
-
-        if (this.isDead || state === 'Death') {
-            const progress = Math.min(1, this.deathTimer / 1.0);
-            return { name: 'death', frame: Math.min(9, Math.floor(progress * 10)) };
-        }
-
-        if (state === 'Hurt' || this.hurtTimer > 0) {
-            return { name: 'hit', frame: 0 };
-        }
-
-        if (state === 'Dodge') {
-            const progress = 1 - Math.max(0, this.dodgeTimer / this.dodgeDuration);
-            return { name: 'roll', frame: Math.min(11, Math.floor(progress * 12)) };
-        }
-
-        if (state === 'Attack') {
-            const total = this.currentAttack
-                ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery)
-                : 0.4;
-            const progress = Math.min(0.999, Math.max(0, sm.attackProgress / total));
-            if (this.comboCount === 1) {
-                return { name: 'attack1', frame: Math.floor(progress * 4) };
-            } else if (this.comboCount === 2) {
-                return { name: 'attack2', frame: Math.floor(progress * 6) };
-            } else {
-                return { name: 'attack3', frame: Math.floor(progress * 10) };
-            }
-        }
-
-        if (state === 'HeavyAttack') {
-            if (this.isChargingHeavy) {
-                const charge = this.heavyChargeTime / this.heavyChargeMax;
-                return { name: 'crouch_attack', frame: Math.min(1, Math.floor(charge * 2)) };
-            } else {
-                const total = this.currentAttack
-                    ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery)
-                    : 0.5;
-                const progress = Math.min(0.999, Math.max(0, sm.attackProgress / total));
-                return { name: 'crouch_attack', frame: Math.min(3, 2 + Math.floor(progress * 2)) };
-            }
-        }
-
-        if (state === 'SkillCast') {
-            if (this.currentAttack?.id === 'valor_strike') {
-                const total = this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery;
-                const progress = Math.min(0.999, Math.max(0, sm.attackProgress / total));
-                return { name: 'dash', frame: Math.min(1, Math.floor(progress * 2)) };
-            }
-            if (this.currentAttack?.id === 'iron_breaker') {
-                const total = this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery;
-                const progress = Math.min(0.999, Math.max(0, sm.attackProgress / total));
-                return { name: 'crouch_attack', frame: Math.min(3, Math.floor(progress * 4)) };
-            }
-            return { name: 'attack2', frame: Math.floor((this.animTime * 10) % 6) };
-        }
-
-        if (state === 'Jump') {
-            const frame = this.vy < -250 ? 0 : (this.vy < 0 ? 1 : 2);
-            return { name: 'jump', frame };
-        }
-
-        if (state === 'Fall') {
-            const frame = Math.min(2, Math.floor(sm.stateTime * 6));
-            return { name: 'fall', frame };
-        }
-
-        if (state === 'Walk' || state === 'Run') {
-            return { name: 'run', frame: Math.floor(this.animTime * 13) % 10 };
-        }
-
-        // Default: Idle
-        return { name: 'idle', frame: Math.floor(this.animTime * 10) % 10 };
-    }
-
     render(ctx) {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.scale(this.facing, 1);
 
-        // Pixel-art crisp rendering
         ctx.imageSmoothingEnabled = false;
 
         if (this.hurtTimer > 0 && Math.floor(this.hurtTimer * 20) % 2 === 0) {
@@ -605,27 +924,56 @@ export class Player {
             ctx.globalAlpha = 0.75;
         }
 
-        this.drawSprite(ctx);
+        // Draw shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        ctx.ellipse(0, 2, 22, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Render Hero Sprite
+        if (this.character.spriteType === 'freeknight') {
+            this.renderKnight(ctx);
+        } else if (this.character.spriteType === 'sheet_blonde') {
+            this.renderBlonde(ctx);
+        } else if (this.character.spriteType === 'sheet_brown') {
+            this.renderBrown(ctx);
+        }
 
         if (this.isRaging) {
             this.drawRageAura(ctx);
         }
 
         ctx.restore();
+
+        // Render floating notifications (in world coordinates, not scaled by facing)
+        this.renderFloatingTexts(ctx);
     }
 
-    drawSprite(ctx) {
-        const anim = this.getAnimation();
-        const sheet = this.sprites[anim.name];
+    renderFloatingTexts(ctx) {
+        if (!this.floatingTexts.length) return;
+        ctx.save();
+        for (const ft of this.floatingTexts) {
+            const alpha = Math.min(1, ft.life / 0.3);
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = ft.color;
+            ctx.font = 'bold 13px "Cinzel", serif';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#000';
+            ctx.shadowBlur = 4;
+            ctx.fillText(ft.text, ft.x, ft.y);
+        }
+        ctx.restore();
+    }
 
-        // Soft grounded shadow beneath feet
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.beginPath();
-        ctx.ellipse(0, 2, 22, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
+    // ========================================================================
+    // HERO SPRITE RENDERERS
+    // ========================================================================
 
-        if (!sheet || !sheet.loaded) {
-            // Crisp fallback while sprite is loading
+    renderKnight(ctx) {
+        const anim = this.getKnightAnimation();
+        const sheet = getImage(anim.cfg.file);
+
+        if (!sheet.loaded) {
             ctx.fillStyle = '#4a4035';
             ctx.fillRect(-this.width / 2, -this.height, this.width, this.height);
             return;
@@ -633,18 +981,223 @@ export class Player {
 
         const frameW = 120;
         const frameH = 80;
-        const scale = 2.0;
-        const anchorX = 55;
-        const anchorY = 80;
+        const scale = this.character.scale;
+        const anchorX = this.character.anchorX;
+        const anchorY = this.character.anchorY;
 
-        const sx = anim.frame * frameW;
-        const sy = 0;
-        const dx = -anchorX * scale;
-        const dy = -anchorY * scale;
-        const dw = frameW * scale;
-        const dh = frameH * scale;
+        ctx.drawImage(
+            sheet.img,
+            anim.frame * frameW, 0, frameW, frameH,
+            -anchorX * scale, -anchorY * scale, frameW * scale, frameH * scale
+        );
+    }
 
-        ctx.drawImage(sheet.image, sx, sy, frameW, frameH, dx, dy, dw, dh);
+    getKnightAnimation() {
+        const sm = this.stateMachine;
+        const state = sm.currentState;
+
+        if (this.isDead || state === 'Death') {
+            const p = Math.min(1, this.deathTimer / 1.0);
+            return { cfg: KNIGHT_ANIMATIONS.death, frame: Math.min(9, Math.floor(p * 10)) };
+        }
+        if (state === 'Hurt' || this.hurtTimer > 0) {
+            return { cfg: KNIGHT_ANIMATIONS.hit, frame: 0 };
+        }
+        if (state === 'Dodge') {
+            const p = 1 - Math.max(0, this.dodgeTimer / this.dodgeDuration);
+            return { cfg: KNIGHT_ANIMATIONS.roll, frame: Math.min(11, Math.floor(p * 12)) };
+        }
+        if (state === 'Attack') {
+            const total = this.currentAttack ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery) : 0.4;
+            const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+            if (this.comboCount === 1) return { cfg: KNIGHT_ANIMATIONS.attack1, frame: Math.floor(p * 4) };
+            if (this.comboCount === 2) return { cfg: KNIGHT_ANIMATIONS.attack2, frame: Math.floor(p * 6) };
+            return { cfg: KNIGHT_ANIMATIONS.attack3, frame: Math.floor(p * 10) };
+        }
+        if (state === 'HeavyAttack') {
+            if (this.isChargingHeavy) {
+                const charge = this.heavyChargeTime / this.heavyChargeMax;
+                return { cfg: KNIGHT_ANIMATIONS.crouch_attack, frame: Math.min(1, Math.floor(charge * 2)) };
+            }
+            const total = this.currentAttack ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery) : 0.5;
+            const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+            return { cfg: KNIGHT_ANIMATIONS.crouch_attack, frame: Math.min(3, 2 + Math.floor(p * 2)) };
+        }
+        if (state === 'SkillCast') {
+            if (this.currentAttack?.id === 'valor_strike') {
+                const total = this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery;
+                const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+                return { cfg: KNIGHT_ANIMATIONS.dash, frame: Math.min(1, Math.floor(p * 2)) };
+            }
+            if (this.currentAttack?.id === 'iron_breaker') {
+                const total = this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery;
+                const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+                return { cfg: KNIGHT_ANIMATIONS.crouch_attack, frame: Math.min(3, Math.floor(p * 4)) };
+            }
+            return { cfg: KNIGHT_ANIMATIONS.attack2, frame: Math.floor((this.animTime * 10) % 6) };
+        }
+        if (state === 'Jump') {
+            const frame = this.vy < -250 ? 0 : (this.vy < 0 ? 1 : 2);
+            return { cfg: KNIGHT_ANIMATIONS.jump, frame };
+        }
+        if (state === 'Fall') {
+            return { cfg: KNIGHT_ANIMATIONS.fall, frame: Math.min(2, Math.floor(sm.stateTime * 6)) };
+        }
+        if (state === 'Walk' || state === 'Run') {
+            return { cfg: KNIGHT_ANIMATIONS.run, frame: Math.floor(this.animTime * 14) % 10 };
+        }
+        return { cfg: KNIGHT_ANIMATIONS.idle, frame: Math.floor(this.animTime * 10) % 10 };
+    }
+
+    renderBlonde(ctx) {
+        const sheet = getImage('girl warior.png');
+        if (!sheet.loaded) {
+            ctx.fillStyle = '#c9a227';
+            ctx.fillRect(-this.width / 2, -this.height, this.width, this.height);
+            return;
+        }
+
+        const anim = this.getWarriorGridFrame();
+        const cellW = 69;
+        const cellH = 44;
+        const scale = this.character.scale;
+        const anchorX = this.character.anchorX;
+        const anchorY = this.character.anchorY;
+
+        ctx.drawImage(
+            sheet.img,
+            anim.col * cellW, anim.row * cellH, cellW, cellH,
+            -anchorX * scale, -anchorY * scale, cellW * scale, cellH * scale
+        );
+    }
+
+    renderBrown(ctx) {
+        const state = this.stateMachine.currentState;
+
+        // Ladder climb uses individual PNG frames
+        if (state === 'Climb') {
+            const climbIndex = (Math.floor(this.climbAnimProgress) % 8) + 1;
+            const climbSheet = getImage(`Girl Warior brown hair/Warrior/Individual Sprite/Ladder-Grab/Warrior-Ladder-Grab_${climbIndex}.png`);
+            if (climbSheet.loaded) {
+                const cellW = 69;
+                const cellH = 44;
+                const scale = this.character.scale;
+                const anchorX = this.character.anchorX;
+                const anchorY = this.character.anchorY;
+                ctx.drawImage(
+                    climbSheet.img,
+                    0, 0, cellW, cellH,
+                    -anchorX * scale, -anchorY * scale, cellW * scale, cellH * scale
+                );
+                return;
+            }
+        }
+
+        const sheet = getImage('Girl Warior brown hair/Warrior/SpriteSheet/Warrior_Sheet-Effect.png');
+        if (!sheet.loaded) {
+            ctx.fillStyle = '#7a3320';
+            ctx.fillRect(-this.width / 2, -this.height, this.width, this.height);
+            return;
+        }
+
+        const anim = this.getWarriorGridFrame();
+        const cellW = 69;
+        const cellH = 44;
+        const scale = this.character.scale;
+        const anchorX = this.character.anchorX;
+        const anchorY = this.character.anchorY;
+
+        ctx.drawImage(
+            sheet.img,
+            anim.col * cellW, anim.row * cellH, cellW, cellH,
+            -anchorX * scale, -anchorY * scale, cellW * scale, cellH * scale
+        );
+    }
+
+    getWarriorGridFrame() {
+        const sm = this.stateMachine;
+        const state = sm.currentState;
+
+        if (this.isDead || state === 'Death') {
+            const p = Math.min(1, this.deathTimer / 1.0);
+            const idx = Math.min(10, Math.floor(p * 11));
+            return { row: 5 + Math.floor(idx / 6), col: idx % 6 };
+        }
+        if (state === 'Hurt' || this.hurtTimer > 0) {
+            return { row: 14, col: Math.floor(sm.stateTime * 8) % 2 };
+        }
+        if (state === 'Climb') {
+            const f = Math.floor(this.climbAnimProgress) % 5;
+            if (f < 3) return { row: 16, col: 3 + f };
+            return { row: 17, col: f - 3 };
+        }
+        if (state === 'Dodge') {
+            const p = 1 - Math.max(0, this.dodgeTimer / this.dodgeDuration);
+            return { row: 14, col: 1 + Math.min(4, Math.floor(p * 5)) };
+        }
+        if (state === 'Attack') {
+            const total = this.currentAttack ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery) : 0.35;
+            const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+            const frameIdx = Math.floor(p * 4);
+            if (this.comboCount === 1) {
+                // Combo 1: Attack 1 (Row 2, cols 2, 3, 4, 5)
+                const c1 = [2, 3, 4, 5];
+                return { row: 2, col: c1[Math.min(3, frameIdx)] };
+            } else {
+                // Combo 2: Attack 2 (Row 3, cols 0, 1, 2, 3)
+                const c2 = [0, 1, 2, 3];
+                return { row: 3, col: c2[Math.min(3, frameIdx)] };
+            }
+        }
+        if (state === 'HeavyAttack') {
+            // Heavy Attack uses Dash Attack sequence (Row 12 col 5, Row 13 cols 0..5, Row 14 cols 0..1)
+            const daFrames = [
+                { row: 12, col: 5 },
+                { row: 13, col: 0 },
+                { row: 13, col: 1 },
+                { row: 13, col: 2 },
+                { row: 13, col: 3 },
+                { row: 13, col: 4 },
+                { row: 13, col: 5 },
+                { row: 14, col: 0 },
+                { row: 14, col: 1 }
+            ];
+            const total = 0.55;
+            const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+            const idx = Math.min(daFrames.length - 1, Math.floor(p * daFrames.length));
+            return daFrames[idx];
+        }
+        if (state === 'SkillCast') {
+            if (this.currentAttack?.id === 'solar_piercer' || this.currentAttack?.id === 'phantom_blink') {
+                // Dash lunge (Row 11 cols 3..5, Row 12 cols 0..1)
+                const dashCols = [3, 4, 5, 4, 3];
+                return { row: 11, col: dashCols[Math.floor((this.animTime * 14) % dashCols.length)] };
+            }
+            if (this.currentAttack?.id === 'radiant_tempest' || this.currentAttack?.id === 'cyclone_blade') {
+                // Whirlwind spin attack (Row 3 cols 4..5, Row 4 cols 0..1)
+                const spinFrames = [
+                    { row: 3, col: 4 },
+                    { row: 3, col: 5 },
+                    { row: 4, col: 0 },
+                    { row: 4, col: 1 }
+                ];
+                const idx = Math.floor((this.animTime * 14) % spinFrames.length);
+                return spinFrames[idx];
+            }
+            return { row: 3, col: Math.floor((this.animTime * 12) % 4) };
+        }
+        if (state === 'Jump') {
+            const f = this.vy < -200 ? 0 : 1;
+            return { row: 6, col: 5 };
+        }
+        if (state === 'Fall') {
+            return { row: 7, col: 3 };
+        }
+        if (state === 'Walk' || state === 'Run') {
+            return { row: 1, col: Math.floor(this.animTime * 12) % 6 };
+        }
+        // Idle
+        return { row: 0, col: Math.floor(this.animTime * 8) % 6 };
     }
 
     drawRageAura(ctx) {
@@ -652,24 +1205,22 @@ export class Player {
         ctx.save();
         ctx.globalAlpha = 0.4;
 
-        // Glowing red/orange aura circle
         const auraY = -this.height / 2;
-        ctx.strokeStyle = '#ff3300';
+        ctx.strokeStyle = this.character.themeColor || '#ff4400';
         ctx.lineWidth = 3;
-        ctx.shadowColor = '#ff4400';
-        ctx.shadowBlur = 16;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = 18;
         ctx.beginPath();
         ctx.arc(0, auraY, 44 + Math.sin(t * 5) * 4, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Rising embers
         for (let i = 0; i < 6; i++) {
             const angle = (i / 6) * Math.PI * 2 + t * 2.5;
-            const dist = 30 + Math.sin(t * 4 + i) * 8;
+            const dist = 32 + Math.sin(t * 4 + i) * 8;
             const px = Math.cos(angle) * dist;
             const py = auraY + Math.sin(angle) * dist * 0.7;
 
-            ctx.fillStyle = `rgba(255, ${80 + i * 25}, 20, 0.8)`;
+            ctx.fillStyle = this.character.themeColor || '#ffaa00';
             ctx.beginPath();
             ctx.arc(px, py, 3 + Math.sin(t * 8 + i) * 1.5, 0, Math.PI * 2);
             ctx.fill();

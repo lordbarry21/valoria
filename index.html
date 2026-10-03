@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/main.css?v=6">
     <!-- Favicon - stylized sword -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230a0808' width='100' height='100'/><polygon fill='%23c9a227' points='50,5 58,35 55,40 58,45 50,90 42,45 45,40 42,35' stroke='%238b2020' stroke-width='2'/><rect fill='%234a4540' x='38' y='42' width='24' height='6'/></svg>">
 </head>
@@ -24,11 +24,133 @@
                 <div class="menu-content">
                     <h1 class="game-title">VALORIA</h1>
                     <nav class="menu-buttons">
-                        <button id="btn-start" class="menu-btn" type="button">Start Game</button>
-                        <button id="btn-settings" class="menu-btn secondary" type="button">Settings</button>
+                        <button id="btn-start" class="menu-btn" type="button">START GAME</button>
+                        <button id="btn-settings" class="menu-btn secondary" type="button">SETTINGS</button>
                     </nav>
                 </div>
                 <div class="menu-decoration"></div>
+            </div>
+
+            <!-- ==================== CHARACTER SELECT ==================== -->
+            <div id="char-select-screen" class="screen hidden">
+                <div class="char-select-header">
+                    <h2 class="char-select-title">CHOOSE YOUR CHAMPION</h2>
+                    <p class="char-select-subtitle">Select your hero and enter the dark arena</p>
+                </div>
+
+                <div class="char-cards-container">
+                    <!-- Hero 1: Sir Roland (Knight) -->
+                    <div class="char-card">
+                        <div class="char-card-badge">EASY</div>
+                        <div class="hero-canvas-frame">
+                            <canvas id="hero-preview-knight" class="hero-preview-canvas" width="110" height="96"></canvas>
+                        </div>
+                        <div class="char-info">
+                            <h3 class="char-name">Sir Roland</h3>
+                            <span class="char-title">The Iron Bulwark</span>
+                            <div class="char-stat-list">
+                                <div class="char-stat-row">
+                                    <span>HP</span>
+                                    <div class="stat-bar-mini"><div class="fill" style="width: 100%;"></div></div>
+                                    <span class="stat-val">150</span>
+                                </div>
+                                <div class="char-stat-row">
+                                    <span>DMG</span>
+                                    <div class="stat-bar-mini"><div class="fill" style="width: 80%;"></div></div>
+                                    <span class="stat-val">A+</span>
+                                </div>
+                                <div class="char-stat-row">
+                                    <span>SPD</span>
+                                    <div class="stat-bar-mini"><div class="fill" style="width: 60%;"></div></div>
+                                    <span class="stat-val">B-</span>
+                                </div>
+                            </div>
+                            <div class="char-trait-badge heavy">Heavy Armor (Cannot Climb Ladders)</div>
+                            <div class="char-skills-preview">
+                                <div class="skill-mini"><b>[Q]</b> Valor Strike</div>
+                                <div class="skill-mini"><b>[E]</b> Iron Breaker</div>
+                                <div class="skill-mini ult"><b>[R]</b> Valoria Rage</div>
+                            </div>
+                        </div>
+                        <button class="menu-btn btn-direct-play" data-char="knight" type="button">PLAY AS KNIGHT</button>
+                    </div>
+
+                    <!-- Hero 2: Lady Sylvia (Valkyrie) -->
+                    <div class="char-card">
+                        <div class="char-card-badge gold">MEDIUM</div>
+                        <div class="hero-canvas-frame">
+                            <canvas id="hero-preview-blonde" class="hero-preview-canvas" width="110" height="96"></canvas>
+                        </div>
+                        <div class="char-info">
+                            <h3 class="char-name">Lady Sylvia</h3>
+                            <span class="char-title">The Radiant Blade</span>
+                            <div class="char-stat-list">
+                                <div class="char-stat-row">
+                                    <span>HP</span>
+                                    <div class="stat-bar-mini"><div class="fill" style="width: 66%;"></div></div>
+                                    <span class="stat-val">100</span>
+                                </div>
+                                <div class="char-stat-row">
+                                    <span>DMG</span>
+                                    <div class="stat-bar-mini"><div class="fill" style="width: 90%;"></div></div>
+                                    <span class="stat-val">S</span>
+                                </div>
+                                <div class="char-stat-row">
+                                    <span>SPD</span>
+                                    <div class="stat-bar-mini"><div class="fill" style="width: 85%;"></div></div>
+                                    <span class="stat-val">A</span>
+                                </div>
+                            </div>
+                            <div class="char-trait-badge climber">Can Climb Ladders & Heals on Hit</div>
+                            <div class="char-skills-preview">
+                                <div class="skill-mini"><b>[Q]</b> Solar Piercer</div>
+                                <div class="skill-mini"><b>[E]</b> Radiant Tempest</div>
+                                <div class="skill-mini ult"><b>[R]</b> Dawn Judgment</div>
+                            </div>
+                        </div>
+                        <button class="menu-btn btn-direct-play" data-char="blonde" type="button">PLAY AS VALKYRIE</button>
+                    </div>
+
+                    <!-- Hero 3: Kaelen (Assassin) -->
+                    <div class="char-card">
+                        <div class="char-card-badge purple">HARD</div>
+                        <div class="hero-canvas-frame">
+                            <canvas id="hero-preview-brown" class="hero-preview-canvas" width="110" height="96"></canvas>
+                        </div>
+                        <div class="char-info">
+                            <h3 class="char-name">Kaelen</h3>
+                            <span class="char-title">The Shadow Blade</span>
+                            <div class="char-stat-list">
+                                <div class="char-stat-row">
+                                    <span>HP</span>
+                                    <div class="stat-bar-mini"><div class="fill" style="width: 55%;"></div></div>
+                                    <span class="stat-val">85</span>
+                                </div>
+                                <div class="char-stat-row">
+                                    <span>DMG</span>
+                                    <div class="stat-bar-mini"><div class="fill" style="width: 100%;"></div></div>
+                                    <span class="stat-val">S+</span>
+                                </div>
+                                <div class="char-stat-row">
+                                    <span>SPD</span>
+                                    <div class="stat-bar-mini"><div class="fill" style="width: 100%;"></div></div>
+                                    <span class="stat-val">S+</span>
+                                </div>
+                            </div>
+                            <div class="char-trait-badge climber">Can Climb Ladders & Double Jump</div>
+                            <div class="char-skills-preview">
+                                <div class="skill-mini"><b>[Q]</b> Phantom Blink</div>
+                                <div class="skill-mini"><b>[E]</b> Cyclone Blade</div>
+                                <div class="skill-mini ult"><b>[R]</b> Eclipse Execution</div>
+                            </div>
+                        </div>
+                        <button class="menu-btn btn-direct-play" data-char="brown" type="button">PLAY AS ASSASSIN</button>
+                    </div>
+                </div>
+
+                <div class="char-select-footer">
+                    <button id="btn-char-select-back" class="menu-btn secondary" type="button">BACK</button>
+                </div>
             </div>
 
             <!-- ==================== SETTINGS MENU ==================== -->
@@ -60,29 +182,40 @@
 
             <!-- ==================== GAME HUD ==================== -->
             <div id="game-hud" class="hidden">
-                <!-- Player Status - Bottom Left -->
-                <div class="player-stats">
-                    <!-- Health -->
-                    <div class="stat-bar health-bar">
-                        <div class="bar-fill" id="health-fill"></div>
-                        <span class="bar-text"><span id="health-current">100</span> / <span id="health-max">100</span></span>
+                <!-- Player Status - Top Left In-Game Frame -->
+                <div id="player-bars-container">
+                    <div class="player-crest">
+                        <div class="crest-frame">
+                            <div class="crest-avatar"></div>
+                        </div>
                     </div>
-                    <!-- Stamina -->
-                    <div class="stat-bar stamina-bar">
-                        <div class="bar-fill" id="stamina-fill"></div>
-                        <span class="bar-text"><span id="stamina-current">100</span></span>
-                    </div>
-                    <!-- Rage -->
-                    <div class="stat-bar rage-bar" id="rage-bar-container">
-                        <div class="bar-fill" id="rage-fill"></div>
-                        <span class="bar-text" id="rage-text"><span id="rage-current">0</span></span>
+                    <div class="player-stats">
+                        <!-- Health -->
+                        <div class="stat-bar health-bar">
+                            <div class="bar-fill" id="health-fill"></div>
+                            <span class="bar-tag">HP</span>
+                            <span class="bar-text"><span id="health-current">100</span> / <span id="health-max">100</span></span>
+                        </div>
+                        <!-- Stamina -->
+                        <div class="stat-bar stamina-bar">
+                            <div class="bar-fill" id="stamina-fill"></div>
+                            <span class="bar-tag">SP</span>
+                            <span class="bar-text"><span id="stamina-current">100</span></span>
+                        </div>
+                        <!-- Rage -->
+                        <div class="stat-bar rage-bar" id="rage-bar-container">
+                            <div class="bar-fill" id="rage-fill"></div>
+                            <span class="bar-tag">RG</span>
+                            <span class="bar-text" id="rage-text"><span id="rage-current">0</span></span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Ability Bar - Bottom Center -->
+                <!-- Ability Bar - Bottom Center In-Game Talismans -->
                 <div class="ability-bar">
                     <!-- Q - Valor Strike -->
                     <div class="ability-slot ready" id="ability-q" data-skill="valorStrike">
+                        <div class="ability-icon icon-valor-strike"></div>
                         <span class="ability-key">Q</span>
                         <span class="ability-name">Valor Strike</span>
                         <div class="cooldown-overlay" id="cooldown-q"></div>
@@ -90,19 +223,24 @@
                     </div>
                     <!-- E - Iron Breaker -->
                     <div class="ability-slot ready" id="ability-e" data-skill="ironBreaker">
+                        <div class="ability-icon icon-iron-breaker"></div>
                         <span class="ability-key">E</span>
                         <span class="ability-name">Iron Breaker</span>
                         <div class="cooldown-overlay" id="cooldown-e"></div>
                         <span class="cooldown-text" id="cooldown-text-e"></span>
                     </div>
-                    <!-- R - Valeria Rage -->
+                    <!-- R - Valoria Rage -->
                     <div class="ability-slot ready" id="ability-r" data-skill="valoriaRage">
+                        <div class="ability-icon icon-valoria-rage"></div>
                         <span class="ability-key">R</span>
                         <span class="ability-name">Valoria Rage</span>
                         <div class="cooldown-overlay" id="cooldown-r"></div>
                         <span class="cooldown-text" id="cooldown-text-r"></span>
                     </div>
                 </div>
+
+                <!-- Quick Fullscreen Button -->
+                <button id="btn-quick-fullscreen" type="button" title="Fullscreen (Press F)">⛶</button>
             </div>
 
             <!-- ==================== PAUSE MENU ==================== -->

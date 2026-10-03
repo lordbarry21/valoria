@@ -4,17 +4,18 @@
  */
 
 const TRANSITIONS = {
-    Idle: ['Walk', 'Run', 'Jump', 'Fall', 'Attack', 'HeavyAttack', 'SkillCast', 'Dodge', 'Hurt', 'Death'],
-    Walk: ['Idle', 'Run', 'Jump', 'Fall', 'Attack', 'HeavyAttack', 'SkillCast', 'Dodge', 'Hurt', 'Death'],
-    Run: ['Idle', 'Walk', 'Jump', 'Fall', 'Attack', 'HeavyAttack', 'SkillCast', 'Dodge', 'Hurt', 'Death'],
-    Jump: ['Fall', 'Land', 'Dodge', 'Hurt', 'Death'],
-    Fall: ['Land', 'Dodge', 'Hurt', 'Death'],
-    Land: ['Idle', 'Walk', 'Run', 'Jump', 'Attack', 'HeavyAttack', 'SkillCast', 'Dodge', 'Hurt', 'Death'],
+    Idle: ['Walk', 'Run', 'Jump', 'Fall', 'Attack', 'HeavyAttack', 'SkillCast', 'Dodge', 'Hurt', 'Death', 'Climb'],
+    Walk: ['Idle', 'Run', 'Jump', 'Fall', 'Attack', 'HeavyAttack', 'SkillCast', 'Dodge', 'Hurt', 'Death', 'Climb'],
+    Run: ['Idle', 'Walk', 'Jump', 'Fall', 'Attack', 'HeavyAttack', 'SkillCast', 'Dodge', 'Hurt', 'Death', 'Climb'],
+    Jump: ['Fall', 'Land', 'Dodge', 'Hurt', 'Death', 'Climb'],
+    Fall: ['Land', 'Dodge', 'Hurt', 'Death', 'Climb'],
+    Land: ['Idle', 'Walk', 'Run', 'Jump', 'Attack', 'HeavyAttack', 'SkillCast', 'Dodge', 'Hurt', 'Death', 'Climb'],
     Attack: ['Idle', 'Walk', 'Run', 'Jump', 'Fall', 'SkillCast', 'Dodge', 'Hurt', 'Death'],
     HeavyAttack: ['Idle', 'Walk', 'Attack', 'Hurt', 'Death'],
     SkillCast: ['Idle', 'Walk', 'Run', 'Fall', 'Dodge', 'Hurt', 'Death'],
     Dodge: ['Idle', 'Walk', 'Run', 'Jump', 'Fall', 'Hurt', 'Death'],
     Hurt: ['Idle', 'Walk', 'Run', 'Fall', 'Death'],
+    Climb: ['Idle', 'Walk', 'Run', 'Jump', 'Fall', 'Hurt', 'Death'],
     Death: [],
 };
 

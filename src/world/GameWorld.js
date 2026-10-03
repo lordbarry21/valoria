@@ -58,9 +58,17 @@ export class GameWorld {
     init() {
         this.time = 0;
 
-        // Set up platforms
+        // Set up platforms (main floor + elevated ramparts)
         this.platforms = [
-            { x: 0, y: this.floorY, width: this.arenaWidth, height: 100 }
+            { x: 0, y: this.floorY, width: this.arenaWidth, height: 100 },
+            { x: 260, y: 340, width: 220, height: 20 },
+            { x: 920, y: 340, width: 220, height: 20 }
+        ];
+
+        // Set up climbable ladders
+        this.ladders = [
+            { x: 370, topY: 340, bottomY: this.floorY, width: 28 },
+            { x: 1030, topY: 340, bottomY: this.floorY, width: 28 }
         ];
 
         // Set up decorations
@@ -221,14 +229,13 @@ export class GameWorld {
         // Background with depth
         this.renderBackground(ctx);
 
-        // Distant silhouettes (parallax)
-        this.renderSilhouettes(ctx);
-
-        // Floor
+        // Floor & platforms
         this.renderFloor(ctx);
+        this.renderPlatforms(ctx);
 
-        // Decorations (back layer)
+        // Decorations (back layer) & Ladders
         this.renderDecorationsBack(ctx);
+        this.renderLadders(ctx);
 
         // Lights
         this.renderLights(ctx);
@@ -256,13 +263,14 @@ export class GameWorld {
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight);
 
-        // Castle background art
+        // Castle background art covering full wall height from top to floor
         if (this.bgLoaded && this.bgImage) {
             ctx.save();
             ctx.imageSmoothingEnabled = false;
-            const bgW = 426 * 2.2;
-            const bgH = 190 * 2.2;
-            const bgY = this.floorY - bgH + 30;
+            const bgScale = (this.floorY + 20) / 190;
+            const bgW = 426 * bgScale;
+            const bgH = 190 * bgScale;
+            const bgY = this.floorY - bgH + 20;
             const tiles = Math.ceil(this.arenaWidth / bgW) + 1;
             for (let i = 0; i < tiles; i++) {
                 ctx.drawImage(this.bgImage, i * bgW, bgY, bgW, bgH);
@@ -271,11 +279,12 @@ export class GameWorld {
         }
 
         // Subtle atmospheric haze
-        const haze = ctx.createLinearGradient(0, 0, 0, this.arenaHeight * 0.7);
-        haze.addColorStop(0, 'rgba(20, 15, 12, 0.3)');
-        haze.addColorStop(1, 'rgba(10, 8, 6, 0)');
+        const haze = ctx.createLinearGradient(0, 0, 0, this.floorY);
+        haze.addColorStop(0, 'rgba(12, 10, 14, 0.2)');
+        haze.addColorStop(0.7, 'rgba(16, 12, 14, 0.1)');
+        haze.addColorStop(1, 'rgba(10, 8, 6, 0.35)');
         ctx.fillStyle = haze;
-        ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight * 0.7);
+        ctx.fillRect(0, 0, this.arenaWidth, this.floorY);
     }
 
     renderSilhouettes(ctx) {
@@ -339,6 +348,94 @@ export class GameWorld {
     seededRandom(seed) {
         const x = Math.sin(seed) * 10000;
         return x - Math.floor(x);
+    }
+
+    renderPlatforms(ctx) {
+        for (const p of this.platforms) {
+            if (p.y >= this.floorY) continue; // ground handled by renderFloor
+            ctx.save();
+            const grad = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.height);
+            grad.addColorStop(0, '#382f28');
+            grad.addColorStop(0.3, '#261f1a');
+            grad.addColorStop(1, '#15110d');
+            ctx.fillStyle = grad;
+            ctx.fillRect(p.x, p.y, p.width, p.height);
+
+            // Platform top stone lip
+            ctx.fillStyle = '#4f4136';
+            ctx.fillRect(p.x, p.y, p.width, 3);
+
+            // Brick joints
+            ctx.strokeStyle = '#18120e';
+            ctx.lineWidth = 1.5;
+            for (let bx = p.x + 36; bx < p.x + p.width; bx += 40) {
+                ctx.beginPath();
+                ctx.moveTo(bx, p.y);
+                ctx.lineTo(bx, p.y + p.height);
+                ctx.stroke();
+            }
+
+            // Stone corbels / brackets
+            ctx.fillStyle = '#1c1510';
+            ctx.beginPath();
+            ctx.moveTo(p.x + 10, p.y + p.height);
+            ctx.lineTo(p.x + 35, p.y + p.height);
+            ctx.lineTo(p.x + 10, p.y + p.height + 25);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(p.x + p.width - 35, p.y + p.height);
+            ctx.lineTo(p.x + p.width - 10, p.y + p.height);
+            ctx.lineTo(p.x + p.width - 10, p.y + p.height + 25);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+    }
+
+    renderLadders(ctx) {
+        if (!this.ladders) return;
+        for (const lad of this.ladders) {
+            ctx.save();
+            const topY = lad.topY;
+            const botY = lad.bottomY;
+            const w = lad.width;
+            const x = lad.x;
+            const leftRail = x - w / 2;
+            const rightRail = x + w / 2 - 4;
+
+            // Wooden vertical side poles
+            ctx.fillStyle = '#2c1e13';
+            ctx.fillRect(leftRail, topY - 14, 5, (botY - topY) + 14);
+            ctx.fillRect(rightRail, topY - 14, 5, (botY - topY) + 14);
+
+            // Highlights
+            ctx.fillStyle = '#483321';
+            ctx.fillRect(leftRail + 1, topY - 14, 2, (botY - topY) + 14);
+            ctx.fillRect(rightRail + 1, topY - 14, 2, (botY - topY) + 14);
+
+            // Metal brackets
+            ctx.fillStyle = '#555';
+            ctx.fillRect(leftRail - 2, topY + 4, 8, 4);
+            ctx.fillRect(rightRail - 1, topY + 4, 8, 4);
+            ctx.fillRect(leftRail - 2, botY - 8, 8, 4);
+            ctx.fillRect(rightRail - 1, botY - 8, 8, 4);
+
+            // Rungs
+            const rungStep = 18;
+            for (let ry = topY + 8; ry < botY; ry += rungStep) {
+                ctx.fillStyle = '#150d08';
+                ctx.fillRect(leftRail + 2, ry + 2, w - 6, 4);
+                ctx.fillStyle = '#3a2718';
+                ctx.fillRect(leftRail + 2, ry, w - 6, 3);
+                ctx.fillStyle = '#5c3f27';
+                ctx.fillRect(leftRail + 2, ry, w - 6, 1);
+            }
+
+            ctx.restore();
+        }
     }
 
     renderFloor(ctx) {

@@ -91,24 +91,25 @@ function resizeCanvas() {
     const container = document.getElementById('game-container');
     const containerWidth = container.clientWidth || window.innerWidth;
     const containerHeight = container.clientHeight || window.innerHeight;
-    const gameRatio = GAME_CONFIG.CANVAS_WIDTH / GAME_CONFIG.CANVAS_HEIGHT;
-    const containerRatio = containerWidth / containerHeight;
 
-    // Fit the canvas inside the container while keeping the game's aspect ratio
-    let canvasWidth, canvasHeight;
+    // Responsive full-bleed canvas: matches exact container aspect ratio with no letterbox black bars
+    const targetHeight = 540;
+    const targetWidth = Math.max(960, Math.round(targetHeight * (containerWidth / containerHeight)));
 
-    if (containerRatio > gameRatio) {
-        canvasHeight = containerHeight;
-        canvasWidth = canvasHeight * gameRatio;
-    } else {
-        canvasWidth = containerWidth;
-        canvasHeight = canvasWidth / gameRatio;
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    GAME_CONFIG.CANVAS_WIDTH = targetWidth;
+    GAME_CONFIG.CANVAS_HEIGHT = targetHeight;
+
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.left = '0px';
+    canvas.style.top = '0px';
+
+    if (camera) {
+        camera.bounds.maxX = Math.max(targetWidth, gameWorld?.arenaWidth || 1400);
+        camera.bounds.maxY = targetHeight;
     }
-
-    canvas.style.width = `${canvasWidth}px`;
-    canvas.style.height = `${canvasHeight}px`;
-    canvas.style.left = `${(containerWidth - canvasWidth) / 2}px`;
-    canvas.style.top = `${(containerHeight - canvasHeight) / 2}px`;
 }
 
 // ============================================================================
@@ -121,6 +122,10 @@ function setupInputHandlers() {
         } else if (currentState === GameState.PAUSED) {
             resumeGame();
         }
+    });
+
+    inputManager.bindAction('Fullscreen', 'KeyF', () => {
+        toggleFullscreen();
     });
 
     inputManager.bindAction('Debug', 'F1', () => {
@@ -144,7 +149,19 @@ function openSettings(returnScreen) {
 }
 
 function setupUIHandlers() {
-    document.getElementById('btn-start').addEventListener('click', startGame);
+    // Open character selection screen from Main Menu
+    document.getElementById('btn-start').addEventListener('click', () => showScreen('char-select-screen'));
+    document.getElementById('btn-char-select-back').addEventListener('click', () => showScreen('main-menu'));
+
+    // Direct Play buttons on each character card: One-click immediately starts game!
+    document.querySelectorAll('.btn-direct-play').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const charId = e.currentTarget.dataset.char;
+            player.setCharacter(charId);
+            startGame();
+        });
+    });
+
     document.getElementById('btn-settings').addEventListener('click', () => openSettings('main-menu'));
     document.getElementById('btn-settings-back').addEventListener('click', () => showScreen(settingsReturnScreen));
 
@@ -161,6 +178,7 @@ function setupUIHandlers() {
     bindVolumeSlider('sfx-volume', 'sfx-value', v => audioManager.setSFXVolume(v));
 
     document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+    document.getElementById('btn-quick-fullscreen')?.addEventListener('click', toggleFullscreen);
     document.addEventListener('fullscreenchange', syncFullscreenLabel);
 
     document.getElementById('btn-resume').addEventListener('click', resumeGame);
@@ -357,6 +375,59 @@ function renderMenuBackground() {
         ctx.beginPath();
         ctx.arc(x, y, 2, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    // Render live animated pixel-art idle sprites in character selection cards
+    renderHeroPreviews(menuTime);
+}
+
+const previewImages = {
+    knight: new Image(),
+    blonde: new Image(),
+    brown: new Image()
+};
+previewImages.knight.src = 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Idle.png';
+previewImages.blonde.src = 'girl warior.png';
+previewImages.brown.src = 'Girl Warior brown hair/Warrior/SpriteSheet/Warrior_Sheet-Effect.png';
+
+function renderHeroPreviews(time) {
+    // Knight Preview
+    const cK = document.getElementById('hero-preview-knight');
+    if (cK && previewImages.knight.complete && previewImages.knight.naturalWidth > 0) {
+        const ctxK = cK.getContext('2d');
+        ctxK.imageSmoothingEnabled = false;
+        ctxK.clearRect(0, 0, cK.width, cK.height);
+        const frame = Math.floor(time * 10) % 10;
+        const scale = 1.8;
+        const dx = 55 - 55 * scale;
+        const dy = 88 - 80 * scale;
+        ctxK.drawImage(previewImages.knight, frame * 120, 0, 120, 80, dx, dy, 120 * scale, 80 * scale);
+    }
+
+    // Blonde Valkyrie Preview
+    const cB = document.getElementById('hero-preview-blonde');
+    if (cB && previewImages.blonde.complete && previewImages.blonde.naturalWidth > 0) {
+        const ctxB = cB.getContext('2d');
+        ctxB.imageSmoothingEnabled = false;
+        ctxB.clearRect(0, 0, cB.width, cB.height);
+        const frame = Math.floor(time * 8) % 6;
+        const scale = 2.0;
+        const dx = 55 - 27 * scale;
+        const dy = 88 - 43 * scale;
+        ctxB.drawImage(previewImages.blonde, frame * 69, 0, 69, 44, dx, dy, 69 * scale, 44 * scale);
+    }
+
+    // Brown Assassin Preview
+    const cBr = document.getElementById('hero-preview-brown');
+    if (cBr && previewImages.brown.complete && previewImages.brown.naturalWidth > 0) {
+        const ctxBr = cBr.getContext('2d');
+        ctxBr.imageSmoothingEnabled = false;
+        ctxBr.clearRect(0, 0, cBr.width, cBr.height);
+        const frame = Math.floor(time * 8) % 6;
+        const scale = 2.0;
+        const dx = 55 - 27 * scale;
+        const dy = 88 - 43 * scale;
+        ctxBr.drawImage(previewImages.brown, frame * 69, 0, 69, 44, dx, dy, 69 * scale, 44 * scale);
     }
 }
 

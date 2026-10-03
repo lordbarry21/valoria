@@ -1,24 +1,34 @@
 /**
  * VALORIA - Enemy Manager
- * Handles enemy spawning, wave progression, updates, and rendering
+ * Handles multi-stage enemy spawning, wave progression, updates, and rendering
  */
 
 import { player, gameWorld, victoryAchieved } from '../main.js';
 import { Enemy } from './Enemy.js';
 import { WraithSoldier } from './WraithSoldier.js';
+import { SkeletonEnemy } from './SkeletonEnemy.js';
+import { GoblinEnemy } from './GoblinEnemy.js';
+import { FlyingEyeEnemy } from './FlyingEyeEnemy.js';
+import { MushroomEnemy } from './MushroomEnemy.js';
 import { Brute } from './Brute.js';
 import { ShadowCaster } from './ShadowCaster.js';
+import { BossKnight } from './BossKnight.js';
 
-const TOTAL_WAVES = 3;
+const TOTAL_WAVES = 6;
 const WAVE_INTERMISSION = 2.0;
-const WAVE_BANNER_DURATION = 2.0;
+const WAVE_BANNER_DURATION = 2.5;
 const MIN_SPAWN_DISTANCE_FROM_PLAYER = 300;
 const SPAWN_XS = [1250, 150, 1100, 300, 1180, 230];
 
 const ENEMY_FACTORIES = {
     wraith: () => new WraithSoldier(),
+    skeleton: () => new SkeletonEnemy(),
+    goblin: () => new GoblinEnemy(),
+    eye: () => new FlyingEyeEnemy(),
+    mushroom: () => new MushroomEnemy(),
     brute: () => new Brute(),
     caster: () => new ShadowCaster(),
+    boss: () => new BossKnight(),
 };
 
 export class EnemyManager {
@@ -29,6 +39,7 @@ export class EnemyManager {
         this.intermissionTimer = 0;
         this.bannerTimer = 0;
         this.bannerText = '';
+        this.stage = 1;
     }
 
     init() {
@@ -37,25 +48,46 @@ export class EnemyManager {
         this.intermissionTimer = 0;
         this.bannerTimer = 0;
         this.bannerText = '';
+        this.stage = 1;
+        if (gameWorld?.bgImage) {
+            gameWorld.bgImage.src = 'Assets/Assets/PNG/Castle-Background.png';
+        }
     }
 
     spawnWave() {
         this.waveNumber++;
 
-        const numWraiths = Math.min(2 + this.waveNumber, 4);
-        const numBrutes = this.waveNumber >= 2 ? 1 : 0;
-        const numCasters = this.waveNumber >= 3 ? 1 : 0;
+        let roster = [];
+        let banner = `Stage 1 - Wave ${this.waveNumber}`;
 
-        const roster = [
-            ...Array(numWraiths).fill('wraith'),
-            ...Array(numBrutes).fill('brute'),
-            ...Array(numCasters).fill('caster'),
-        ];
+        if (this.waveNumber === 1) {
+            banner = 'Stage 1: Castle Ramparts - Wave 1';
+            roster = ['wraith', 'wraith', 'skeleton', 'skeleton'];
+        } else if (this.waveNumber === 2) {
+            banner = 'Wave 2: Goblin Ambush';
+            roster = ['goblin', 'goblin', 'eye', 'eye', 'skeleton'];
+        } else if (this.waveNumber === 3) {
+            banner = 'MINI-BOSS: Fungal Abomination';
+            roster = ['mushroom', 'skeleton', 'skeleton'];
+        } else if (this.waveNumber === 4) {
+            this.stage = 2;
+            banner = 'Stage 2: Frozen Citadel - Wave 4';
+            if (gameWorld?.bgImage) {
+                gameWorld.bgImage.src = 'Assets/Assets/PNG/Ice-Background.png';
+            }
+            roster = ['brute', 'brute', 'goblin', 'goblin', 'eye'];
+        } else if (this.waveNumber === 5) {
+            banner = 'BOSS: The Dark Necromancer';
+            roster = ['caster', 'skeleton', 'skeleton', 'wraith', 'wraith'];
+        } else if (this.waveNumber === 6) {
+            banner = 'FINAL CLIMAX: Malakar, The Fallen Knight';
+            roster = ['boss'];
+        }
 
         const spawnXs = this.getSpawnPositions();
         roster.forEach((type, index) => this.spawnEnemy(type, spawnXs[index % spawnXs.length]));
 
-        this.showBanner(this.waveNumber === TOTAL_WAVES ? 'Final Wave' : `Wave ${this.waveNumber}`);
+        this.showBanner(banner);
     }
 
     // Prefer spawn points away from the player so nobody gets hit the instant a wave starts.

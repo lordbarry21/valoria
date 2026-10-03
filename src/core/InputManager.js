@@ -26,7 +26,9 @@ export class InputManager {
         this.bindings = {
             MoveLeft: ['KeyA', 'ArrowLeft'],
             MoveRight: ['KeyD', 'ArrowRight'],
-            Jump: ['Space', 'KeyW', 'ArrowUp'],
+            Jump: ['Space'],
+            Up: ['KeyW', 'ArrowUp'],
+            Down: ['KeyS', 'ArrowDown'],
             Dodge: ['ShiftLeft', 'ShiftRight', 'ControlLeft'],
             Skill1: ['KeyQ'],
             Skill2: ['KeyE'],
@@ -119,6 +121,21 @@ export class InputManager {
         if (this.isActionPressed('MoveLeft')) dir -= 1;
         if (this.isActionPressed('MoveRight')) dir += 1;
         return dir;
+    }
+
+    getVerticalInput() {
+        let dir = 0;
+        if (this.isActionPressed('Up')) dir -= 1;
+        if (this.isActionPressed('Down')) dir += 1;
+        return dir;
+    }
+
+    isUpPressed() {
+        return this.isActionJustPressed('Up');
+    }
+
+    isDownPressed() {
+        return this.isActionJustPressed('Down');
     }
 
     isJumpPressed() {

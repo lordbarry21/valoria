@@ -60,6 +60,9 @@ export class Brute extends Enemy {
     drawBody(ctx) {
         ctx.imageSmoothingEnabled = false;
 
+        // The bat sprite was drawn facing left by default; flip horizontally so it tracks player correctly
+        ctx.scale(-1, 1);
+
         const t = this.animTime;
         // Floating hover motion
         const hoverY = this.isDead ? 0 : Math.sin(t * 3.5) * 6 - 8;

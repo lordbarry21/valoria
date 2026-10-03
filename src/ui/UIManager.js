@@ -39,12 +39,51 @@ export class UIManager {
     }
 
     init() {
+        this.syncHeroSkills();
         this.updateHealth();
         this.updateStamina();
         this.updateRage();
         this.updateAbilities();
         this._prevHealth = player?.health || 100;
         this._prevRage = player?.rage || 0;
+    }
+
+    syncHeroSkills() {
+        if (!player || !player.character) return;
+        const c = player.character;
+
+        // Update crest avatar
+        const crest = document.querySelector('.crest-avatar');
+        if (crest) {
+            if (c.id === 'knight') {
+                crest.style.background = 'url("FreeKnight/Colour1/Outline/120x80_PNGSheets/_Idle.png") -39px -36px / 260px 173px no-repeat';
+                crest.style.imageRendering = 'pixelated';
+            } else if (c.id === 'blonde') {
+                crest.style.background = 'url("girl%20warior.png") -18px -8px / 200px 380px no-repeat';
+                crest.style.imageRendering = 'pixelated';
+            } else if (c.id === 'brown') {
+                crest.style.background = 'url("Girl%20Warior%20brown%20hair/Warrior/SpriteSheet/Warrior_Sheet-Effect.png") -18px -8px / 200px 360px no-repeat';
+                crest.style.imageRendering = 'pixelated';
+            }
+        }
+
+        // Skill 1 (Q)
+        const qName = this.abilityQ?.querySelector('.ability-name');
+        if (qName) qName.textContent = c.skills.skill1.name;
+        const qIcon = this.abilityQ?.querySelector('.ability-icon');
+        if (qIcon) qIcon.className = `ability-icon ${c.skills.skill1.icon}`;
+
+        // Skill 2 (E)
+        const eName = this.abilityE?.querySelector('.ability-name');
+        if (eName) eName.textContent = c.skills.skill2.name;
+        const eIcon = this.abilityE?.querySelector('.ability-icon');
+        if (eIcon) eIcon.className = `ability-icon ${c.skills.skill2.icon}`;
+
+        // Skill 3 (R)
+        const rName = this.abilityR?.querySelector('.ability-name');
+        if (rName) rName.textContent = c.skills.skill3.name;
+        const rIcon = this.abilityR?.querySelector('.ability-icon');
+        if (rIcon) rIcon.className = `ability-icon ${c.skills.skill3.icon}`;
     }
 
     update(dt) {
@@ -120,33 +159,33 @@ export class UIManager {
     }
 
     updateAbilities() {
-        if (!player) return;
+        if (!player || !player.skills) return;
 
-        // Q - Valor Strike
+        // Q
         this.updateAbilitySlot(
             this.abilityQ,
             this.cooldownQ,
             this.cooldownTextQ,
-            player.skills.valorStrike,
+            player.skills.skill1,
             true
         );
 
-        // E - Iron Breaker
+        // E
         this.updateAbilitySlot(
             this.abilityE,
             this.cooldownE,
             this.cooldownTextE,
-            player.skills.ironBreaker,
+            player.skills.skill2,
             true
         );
 
-        // R - Valeria Rage (requires rage >= 100)
+        // R - Requires rage >= 100
         const rageReady = player.rage >= 100;
         this.updateAbilitySlot(
             this.abilityR,
             this.cooldownR,
             this.cooldownTextR,
-            player.skills.valoriaRage,
+            player.skills.skill3,
             rageReady
         );
     }
