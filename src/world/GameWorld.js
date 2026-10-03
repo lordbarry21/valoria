@@ -3,11 +3,15 @@
  * Handles the arena environment and rendering with atmospheric depth
  */
 
-import { GAME_CONFIG } from '../main.js';
+import { GAME_CONFIG, enemyManager } from '../main.js';
 
 const ARENA_EDGE_PADDING = 40;
 
 export class GameWorld {
+    get isIceStage() {
+        return enemyManager?.stage === 2;
+    }
+
     constructor() {
         // Arena dimensions
         this.arenaWidth = 1400;
@@ -173,6 +177,19 @@ export class GameWorld {
         };
     }
 
+    createSnowParticle() {
+        return {
+            x: Math.random() * this.arenaWidth,
+            y: Math.random() * (this.floorY - 60),
+            size: 1.5 + Math.random() * 2.5,
+            speed: 30 + Math.random() * 45,
+            drift: Math.random() * Math.PI * 2,
+            alpha: 0.4 + Math.random() * 0.4,
+            life: 2 + Math.random() * 3,
+            maxLife: 5
+        };
+    }
+
     initBackgroundLayers() {
         // Far background - distant mountains/sky
         this.bgLayers.push({
@@ -211,16 +228,29 @@ export class GameWorld {
             }
         }
 
-        // Update ember particles
+        // Update ember / snow particles
+        const isIce = this.isIceStage;
         for (let i = this.emberParticles.length - 1; i >= 0; i--) {
             const p = this.emberParticles[i];
-            p.y -= p.speed * dt;
-            p.x += Math.sin(this.time * 3 + i) * 15 * dt;
-            p.life -= dt;
-            p.alpha = (p.life / p.maxLife) * 0.6;
+            if (isIce) {
+                // Falling gentle snow in Stage 2
+                p.y += p.speed * 0.8 * dt;
+                p.x += Math.sin(this.time * 2 + i) * 15 * dt;
+                p.life -= dt;
+                p.alpha = Math.min(0.8, p.life / p.maxLife);
 
-            if (p.life <= 0 || p.y < this.floorY - 300) {
-                this.emberParticles[i] = this.createEmberParticle();
+                if (p.life <= 0 || p.y > this.floorY) {
+                    this.emberParticles[i] = this.createSnowParticle();
+                }
+            } else {
+                p.y -= p.speed * dt;
+                p.x += Math.sin(this.time * 3 + i) * 15 * dt;
+                p.life -= dt;
+                p.alpha = (p.life / p.maxLife) * 0.6;
+
+                if (p.life <= 0 || p.y < this.floorY - 300) {
+                    this.emberParticles[i] = this.createEmberParticle();
+                }
             }
         }
     }
@@ -243,7 +273,7 @@ export class GameWorld {
         // Ambient particles
         this.renderAmbientParticles(ctx);
 
-        // Ember particles
+        // Ember / snow particles
         this.renderEmberParticles(ctx);
 
         // Fog/atmosphere
@@ -254,16 +284,25 @@ export class GameWorld {
     }
 
     renderBackground(ctx) {
+        const isIce = this.isIceStage;
+
         // Multi-layer sky gradient
         const gradient = ctx.createLinearGradient(0, 0, 0, this.arenaHeight);
-        gradient.addColorStop(0, '#0c0a0a');     // Dark sky
-        gradient.addColorStop(0.3, '#0a0808');   // Mid sky
-        gradient.addColorStop(0.6, '#080606');   // Lower sky
-        gradient.addColorStop(1, '#0a0808');     // Horizon
+        if (isIce) {
+            gradient.addColorStop(0, '#040914');     // Deep arctic polar night
+            gradient.addColorStop(0.35, '#07182c');   // Cyan dusk
+            gradient.addColorStop(0.7, '#0b233c');    // Glacial horizon
+            gradient.addColorStop(1, '#061424');     // Frozen ice line
+        } else {
+            gradient.addColorStop(0, '#0c0a0a');     // Dark sky
+            gradient.addColorStop(0.3, '#0a0808');   // Mid sky
+            gradient.addColorStop(0.6, '#080606');   // Lower sky
+            gradient.addColorStop(1, '#0a0808');     // Horizon
+        }
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight);
 
-        // Castle background art covering full wall height from top to floor
+        // Background art covering full wall height from top to floor
         if (this.bgLoaded && this.bgImage) {
             ctx.save();
             ctx.imageSmoothingEnabled = false;
@@ -278,11 +317,17 @@ export class GameWorld {
             ctx.restore();
         }
 
-        // Subtle atmospheric haze
+        // Atmospheric haze (cool blue mist on ice, warm haze on castle)
         const haze = ctx.createLinearGradient(0, 0, 0, this.floorY);
-        haze.addColorStop(0, 'rgba(12, 10, 14, 0.2)');
-        haze.addColorStop(0.7, 'rgba(16, 12, 14, 0.1)');
-        haze.addColorStop(1, 'rgba(10, 8, 6, 0.35)');
+        if (isIce) {
+            haze.addColorStop(0, 'rgba(186, 230, 253, 0.12)');
+            haze.addColorStop(0.65, 'rgba(14, 165, 233, 0.08)');
+            haze.addColorStop(1, 'rgba(2, 132, 199, 0.22)');
+        } else {
+            haze.addColorStop(0, 'rgba(12, 10, 14, 0.2)');
+            haze.addColorStop(0.7, 'rgba(16, 12, 14, 0.1)');
+            haze.addColorStop(1, 'rgba(10, 8, 6, 0.35)');
+        }
         ctx.fillStyle = haze;
         ctx.fillRect(0, 0, this.arenaWidth, this.floorY);
     }
@@ -351,45 +396,92 @@ export class GameWorld {
     }
 
     renderPlatforms(ctx) {
+        const isIce = this.isIceStage;
         for (const p of this.platforms) {
             if (p.y >= this.floorY) continue; // ground handled by renderFloor
             ctx.save();
-            const grad = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.height);
-            grad.addColorStop(0, '#382f28');
-            grad.addColorStop(0.3, '#261f1a');
-            grad.addColorStop(1, '#15110d');
-            ctx.fillStyle = grad;
-            ctx.fillRect(p.x, p.y, p.width, p.height);
 
-            // Platform top stone lip
-            ctx.fillStyle = '#4f4136';
-            ctx.fillRect(p.x, p.y, p.width, 3);
+            if (isIce) {
+                // STAGE 2: Frosted Glacial Ice Slab (NO WOOD)
+                const grad = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.height);
+                grad.addColorStop(0, '#1c3d5a');
+                grad.addColorStop(0.5, '#0e2438');
+                grad.addColorStop(1, '#061320');
+                ctx.fillStyle = grad;
+                ctx.fillRect(p.x, p.y, p.width, p.height);
 
-            // Brick joints
-            ctx.strokeStyle = '#18120e';
-            ctx.lineWidth = 1.5;
-            for (let bx = p.x + 36; bx < p.x + p.width; bx += 40) {
+                // Snow crust on top of ice platform
+                ctx.fillStyle = '#f0f9ff';
+                ctx.fillRect(p.x, p.y, p.width, 4);
+
+                // Glistening cyan ice line
+                ctx.fillStyle = '#7dd3fc';
+                ctx.fillRect(p.x, p.y + 4, p.width, 1);
+
+                // Ice crystal joints
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1;
+                for (let bx = p.x + 36; bx < p.x + p.width; bx += 40) {
+                    ctx.beginPath();
+                    ctx.moveTo(bx, p.y + 4);
+                    ctx.lineTo(bx - 3, p.y + p.height);
+                    ctx.stroke();
+                }
+
+                // Sharp hanging icicles underneath! (Zero wood!)
+                for (let ix = p.x + 8; ix < p.x + p.width - 8; ix += 16) {
+                    const icicleLen = 14 + ((ix * 17) % 20);
+                    const icicleGrad = ctx.createLinearGradient(ix, p.y + p.height, ix, p.y + p.height + icicleLen);
+                    icicleGrad.addColorStop(0, '#bae6fd');
+                    icicleGrad.addColorStop(0.7, '#38bdf8');
+                    icicleGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = icicleGrad;
+                    ctx.beginPath();
+                    ctx.moveTo(ix, p.y + p.height);
+                    ctx.lineTo(ix + 6, p.y + p.height);
+                    ctx.lineTo(ix + 3, p.y + p.height + icicleLen);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            } else {
+                // STAGE 1: Ancient Castle Stone Platform
+                const grad = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.height);
+                grad.addColorStop(0, '#382f28');
+                grad.addColorStop(0.3, '#261f1a');
+                grad.addColorStop(1, '#15110d');
+                ctx.fillStyle = grad;
+                ctx.fillRect(p.x, p.y, p.width, p.height);
+
+                // Platform top stone lip
+                ctx.fillStyle = '#4f4136';
+                ctx.fillRect(p.x, p.y, p.width, 3);
+
+                // Brick joints
+                ctx.strokeStyle = '#18120e';
+                ctx.lineWidth = 1.5;
+                for (let bx = p.x + 36; bx < p.x + p.width; bx += 40) {
+                    ctx.beginPath();
+                    ctx.moveTo(bx, p.y);
+                    ctx.lineTo(bx, p.y + p.height);
+                    ctx.stroke();
+                }
+
+                // Stone corbels / brackets
+                ctx.fillStyle = '#1c1510';
                 ctx.beginPath();
-                ctx.moveTo(bx, p.y);
-                ctx.lineTo(bx, p.y + p.height);
-                ctx.stroke();
+                ctx.moveTo(p.x + 10, p.y + p.height);
+                ctx.lineTo(p.x + 35, p.y + p.height);
+                ctx.lineTo(p.x + 10, p.y + p.height + 25);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(p.x + p.width - 35, p.y + p.height);
+                ctx.lineTo(p.x + p.width - 10, p.y + p.height);
+                ctx.lineTo(p.x + p.width - 10, p.y + p.height + 25);
+                ctx.closePath();
+                ctx.fill();
             }
-
-            // Stone corbels / brackets
-            ctx.fillStyle = '#1c1510';
-            ctx.beginPath();
-            ctx.moveTo(p.x + 10, p.y + p.height);
-            ctx.lineTo(p.x + 35, p.y + p.height);
-            ctx.lineTo(p.x + 10, p.y + p.height + 25);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.moveTo(p.x + p.width - 35, p.y + p.height);
-            ctx.lineTo(p.x + p.width - 10, p.y + p.height);
-            ctx.lineTo(p.x + p.width - 10, p.y + p.height + 25);
-            ctx.closePath();
-            ctx.fill();
 
             ctx.restore();
         }
@@ -397,6 +489,8 @@ export class GameWorld {
 
     renderLadders(ctx) {
         if (!this.ladders) return;
+        const isIce = this.isIceStage;
+
         for (const lad of this.ladders) {
             ctx.save();
             const topY = lad.topY;
@@ -406,32 +500,74 @@ export class GameWorld {
             const leftRail = x - w / 2;
             const rightRail = x + w / 2 - 4;
 
-            // Wooden vertical side poles
-            ctx.fillStyle = '#2c1e13';
-            ctx.fillRect(leftRail, topY - 14, 5, (botY - topY) + 14);
-            ctx.fillRect(rightRail, topY - 14, 5, (botY - topY) + 14);
+            if (isIce) {
+                // STAGE 2: FROSTED COBALT IRON & HANGING ICE RUNGS (NO WOOD!)
+                const railGrad = ctx.createLinearGradient(leftRail, topY, leftRail + 5, topY);
+                railGrad.addColorStop(0, '#38bdf8');
+                railGrad.addColorStop(0.5, '#e0f2fe');
+                railGrad.addColorStop(1, '#0284c7');
+                ctx.fillStyle = railGrad;
+                ctx.fillRect(leftRail, topY - 14, 5, (botY - topY) + 14);
+                ctx.fillRect(rightRail, topY - 14, 5, (botY - topY) + 14);
 
-            // Highlights
-            ctx.fillStyle = '#483321';
-            ctx.fillRect(leftRail + 1, topY - 14, 2, (botY - topY) + 14);
-            ctx.fillRect(rightRail + 1, topY - 14, 2, (botY - topY) + 14);
+                // Frost glaze
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.fillRect(leftRail + 1, topY - 14, 2, (botY - topY) + 14);
+                ctx.fillRect(rightRail + 1, topY - 14, 2, (botY - topY) + 14);
 
-            // Metal brackets
-            ctx.fillStyle = '#555';
-            ctx.fillRect(leftRail - 2, topY + 4, 8, 4);
-            ctx.fillRect(rightRail - 1, topY + 4, 8, 4);
-            ctx.fillRect(leftRail - 2, botY - 8, 8, 4);
-            ctx.fillRect(rightRail - 1, botY - 8, 8, 4);
+                // Heavy frost anchor brackets
+                ctx.fillStyle = '#0ea5e9';
+                ctx.fillRect(leftRail - 3, topY + 2, 10, 6);
+                ctx.fillRect(rightRail - 2, topY + 2, 10, 6);
+                ctx.fillRect(leftRail - 3, botY - 10, 10, 6);
+                ctx.fillRect(rightRail - 2, botY - 10, 10, 6);
 
-            // Rungs
-            const rungStep = 18;
-            for (let ry = topY + 8; ry < botY; ry += rungStep) {
-                ctx.fillStyle = '#150d08';
-                ctx.fillRect(leftRail + 2, ry + 2, w - 6, 4);
-                ctx.fillStyle = '#3a2718';
-                ctx.fillRect(leftRail + 2, ry, w - 6, 3);
-                ctx.fillStyle = '#5c3f27';
-                ctx.fillRect(leftRail + 2, ry, w - 6, 1);
+                // Silver ice rungs
+                const rungStep = 18;
+                for (let ry = topY + 8; ry < botY; ry += rungStep) {
+                    // Cold steel rung
+                    ctx.fillStyle = '#0369a1';
+                    ctx.fillRect(leftRail + 2, ry + 2, w - 6, 4);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(leftRail + 2, ry, w - 6, 3);
+                    ctx.fillStyle = '#f0f9ff';
+                    ctx.fillRect(leftRail + 2, ry, w - 6, 1);
+
+                    // Tiny hanging icicles below rung
+                    const icicleH = 5 + ((ry * 7) % 6);
+                    ctx.fillStyle = 'rgba(186, 230, 253, 0.85)';
+                    ctx.beginPath();
+                    ctx.moveTo(x - 4, ry + 4);
+                    ctx.lineTo(x, ry + 4 + icicleH);
+                    ctx.lineTo(x + 4, ry + 4);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            } else {
+                // STAGE 1: Castle Dungeon Timber Ladder
+                ctx.fillStyle = '#2c1e13';
+                ctx.fillRect(leftRail, topY - 14, 5, (botY - topY) + 14);
+                ctx.fillRect(rightRail, topY - 14, 5, (botY - topY) + 14);
+
+                ctx.fillStyle = '#483321';
+                ctx.fillRect(leftRail + 1, topY - 14, 2, (botY - topY) + 14);
+                ctx.fillRect(rightRail + 1, topY - 14, 2, (botY - topY) + 14);
+
+                ctx.fillStyle = '#555';
+                ctx.fillRect(leftRail - 2, topY + 4, 8, 4);
+                ctx.fillRect(rightRail - 1, topY + 4, 8, 4);
+                ctx.fillRect(leftRail - 2, botY - 8, 8, 4);
+                ctx.fillRect(rightRail - 1, botY - 8, 8, 4);
+
+                const rungStep = 18;
+                for (let ry = topY + 8; ry < botY; ry += rungStep) {
+                    ctx.fillStyle = '#150d08';
+                    ctx.fillRect(leftRail + 2, ry + 2, w - 6, 4);
+                    ctx.fillStyle = '#3a2718';
+                    ctx.fillRect(leftRail + 2, ry, w - 6, 3);
+                    ctx.fillStyle = '#5c3f27';
+                    ctx.fillRect(leftRail + 2, ry, w - 6, 1);
+                }
             }
 
             ctx.restore();
@@ -440,48 +576,85 @@ export class GameWorld {
 
     renderFloor(ctx) {
         const floorBottom = this.viewHeight;
+        const isIce = this.isIceStage;
 
-        // Main floor with gradient
-        const floorGradient = ctx.createLinearGradient(0, this.floorY, 0, floorBottom);
-        floorGradient.addColorStop(0, '#1a1512');
-        floorGradient.addColorStop(0.2, '#151210');
-        floorGradient.addColorStop(0.5, '#121010');
-        floorGradient.addColorStop(1, '#080606');
-        ctx.fillStyle = floorGradient;
-        ctx.fillRect(0, this.floorY, this.arenaWidth, floorBottom - this.floorY);
+        if (isIce) {
+            // STAGE 2: Deep Arctic Glacial Ice Shelf
+            const floorGradient = ctx.createLinearGradient(0, this.floorY, 0, floorBottom);
+            floorGradient.addColorStop(0, '#0f2942');
+            floorGradient.addColorStop(0.25, '#091b2c');
+            floorGradient.addColorStop(0.6, '#04101c');
+            floorGradient.addColorStop(1, '#02070d');
+            ctx.fillStyle = floorGradient;
+            ctx.fillRect(0, this.floorY, this.arenaWidth, floorBottom - this.floorY);
 
-        // Stone tile pattern with visible lines
-        ctx.strokeStyle = '#0d0b09';
-        ctx.lineWidth = 1;
+            // Glistening ice surface line
+            ctx.fillStyle = '#e0f2fe';
+            ctx.fillRect(0, this.floorY, this.arenaWidth, 2);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(0, this.floorY + 2, this.arenaWidth, 2);
 
-        // Horizontal lines
-        for (let y = this.floorY + 15; y < floorBottom; y += 25) {
-            ctx.globalAlpha = 0.6;
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(this.arenaWidth, y);
-            ctx.stroke();
+            // Glacial ice grid fractures
+            ctx.strokeStyle = '#0284c7';
+            ctx.lineWidth = 1;
+
+            for (let y = this.floorY + 15; y < floorBottom; y += 25) {
+                ctx.globalAlpha = 0.45;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(this.arenaWidth, y);
+                ctx.stroke();
+            }
+
+            for (let x = 0; x < this.arenaWidth; x += 55) {
+                const offset = (Math.floor(x / 55) % 2) * 12;
+                ctx.beginPath();
+                ctx.moveTo(x, this.floorY + offset);
+                ctx.lineTo(x, floorBottom);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+
+            this.renderFloorDamage(ctx);
+            this.renderFloorHighlights(ctx);
+        } else {
+            // STAGE 1: Castle Stone Floor
+            const floorGradient = ctx.createLinearGradient(0, this.floorY, 0, floorBottom);
+            floorGradient.addColorStop(0, '#1a1512');
+            floorGradient.addColorStop(0.2, '#151210');
+            floorGradient.addColorStop(0.5, '#121010');
+            floorGradient.addColorStop(1, '#080606');
+            ctx.fillStyle = floorGradient;
+            ctx.fillRect(0, this.floorY, this.arenaWidth, floorBottom - this.floorY);
+
+            ctx.strokeStyle = '#0d0b09';
+            ctx.lineWidth = 1;
+
+            for (let y = this.floorY + 15; y < floorBottom; y += 25) {
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(this.arenaWidth, y);
+                ctx.stroke();
+            }
+
+            for (let x = 0; x < this.arenaWidth; x += 50) {
+                const offset = (Math.floor(x / 50) % 2) * 12;
+                ctx.beginPath();
+                ctx.moveTo(x, this.floorY + offset);
+                ctx.lineTo(x, floorBottom);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+
+            this.renderFloorDamage(ctx);
+            this.renderFloorHighlights(ctx);
         }
-
-        // Vertical lines (brick pattern offset)
-        for (let x = 0; x < this.arenaWidth; x += 50) {
-            const offset = (Math.floor(x / 50) % 2) * 12;
-            ctx.beginPath();
-            ctx.moveTo(x, this.floorY + offset);
-            ctx.lineTo(x, floorBottom);
-            ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
-
-        // Cracks and damage marks
-        this.renderFloorDamage(ctx);
-
-        // Worn/wet patches near torches
-        this.renderFloorHighlights(ctx);
     }
 
     renderFloorDamage(ctx) {
-        ctx.strokeStyle = '#060504';
+        const isIce = this.isIceStage;
+        ctx.strokeStyle = isIce ? 'rgba(56, 189, 248, 0.7)' : '#060504';
         ctx.lineWidth = 2;
 
         const cracks = [
@@ -504,7 +677,7 @@ export class GameWorld {
     }
 
     renderFloorHighlights(ctx) {
-        // Subtle wet/glossy patches near torches
+        const isIce = this.isIceStage;
         for (const light of this.lights) {
             const patchX = light.x;
             const patchY = this.floorY + 20;
@@ -513,8 +686,14 @@ export class GameWorld {
                 patchX, patchY, 0,
                 patchX, patchY, 80
             );
-            highlight.addColorStop(0, 'rgba(40, 30, 20, 0.15)');
-            highlight.addColorStop(1, 'rgba(40, 30, 20, 0)');
+            if (isIce) {
+                highlight.addColorStop(0, 'rgba(186, 230, 253, 0.28)');
+                highlight.addColorStop(0.5, 'rgba(56, 189, 248, 0.12)');
+                highlight.addColorStop(1, 'rgba(2, 132, 199, 0)');
+            } else {
+                highlight.addColorStop(0, 'rgba(40, 30, 20, 0.15)');
+                highlight.addColorStop(1, 'rgba(40, 30, 20, 0)');
+            }
             ctx.fillStyle = highlight;
             ctx.fillRect(patchX - 80, patchY - 30, 160, 80);
         }
@@ -557,31 +736,54 @@ export class GameWorld {
         const w = pillar.width;
         const h = pillar.height;
         const damage = pillar.damage || 0.3;
+        const isIce = this.isIceStage;
 
         // Pillar shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillStyle = isIce ? 'rgba(0, 15, 30, 0.4)' : 'rgba(0, 0, 0, 0.3)';
         ctx.fillRect(x - w/2 + 5, y - 5, w, 10);
 
         // Pillar body gradient
         const gradient = ctx.createLinearGradient(x - w/2, 0, x + w/2, 0);
-        gradient.addColorStop(0, '#151310');
-        gradient.addColorStop(0.3, '#201d1a');
-        gradient.addColorStop(0.7, '#252220');
-        gradient.addColorStop(1, '#151310');
+        if (isIce) {
+            gradient.addColorStop(0, '#0c2238');
+            gradient.addColorStop(0.3, '#163c5e');
+            gradient.addColorStop(0.7, '#1b456b');
+            gradient.addColorStop(1, '#0c2238');
+        } else {
+            gradient.addColorStop(0, '#151310');
+            gradient.addColorStop(0.3, '#201d1a');
+            gradient.addColorStop(0.7, '#252220');
+            gradient.addColorStop(1, '#151310');
+        }
         ctx.fillStyle = gradient;
         ctx.fillRect(x - w/2, y - h, w, h);
 
         // Pillar top cap
-        ctx.fillStyle = '#2a2725';
+        ctx.fillStyle = isIce ? '#204a70' : '#2a2725';
         ctx.fillRect(x - w/2 - 4, y - h - 12, w + 8, 15);
 
+        // Snow / frost cap on ice pillar
+        if (isIce) {
+            ctx.fillStyle = '#f0f9ff';
+            ctx.fillRect(x - w/2 - 4, y - h - 16, w + 8, 5);
+
+            // Small hanging icicle from pillar cap
+            ctx.fillStyle = '#bae6fd';
+            ctx.beginPath();
+            ctx.moveTo(x - w/2, y - h + 3);
+            ctx.lineTo(x - w/2 + 4, y - h + 3);
+            ctx.lineTo(x - w/2 + 2, y - h + 15);
+            ctx.closePath();
+            ctx.fill();
+        }
+
         // Pillar base
-        ctx.fillStyle = '#2a2725';
+        ctx.fillStyle = isIce ? '#163857' : '#2a2725';
         ctx.fillRect(x - w/2 - 2, y - 8, w + 4, 12);
 
         // Damage marks based on damage level
         if (damage > 0.2) {
-            ctx.fillStyle = '#0a0808';
+            ctx.fillStyle = isIce ? '#061320' : '#0a0808';
             // Chunks missing
             const chunkSize = damage * 15;
             ctx.fillRect(x - w/2, y - h * 0.4, chunkSize, chunkSize);
@@ -589,7 +791,7 @@ export class GameWorld {
         }
 
         // Vertical cracks
-        ctx.strokeStyle = '#0a0808';
+        ctx.strokeStyle = isIce ? 'rgba(56, 189, 248, 0.6)' : '#0a0808';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(x - w/4, y - h * 0.3);
@@ -597,8 +799,8 @@ export class GameWorld {
         ctx.lineTo(x - w/4, y - h * 0.7);
         ctx.stroke();
 
-        // Subtle moss/weathering at base
-        ctx.fillStyle = 'rgba(30, 40, 30, 0.3)';
+        // Subtle base weathering / frost
+        ctx.fillStyle = isIce ? 'rgba(186, 230, 253, 0.3)' : 'rgba(30, 40, 30, 0.3)';
         ctx.fillRect(x - w/2, y - 15, w, 15);
     }
 
@@ -668,6 +870,7 @@ export class GameWorld {
     }
 
     renderTorch(ctx, light) {
+        const isIce = this.isIceStage;
         const flicker = light.intensity + Math.sin(this.time * 12 + light.flicker * 100) * light.flicker;
         const flicker2 = light.intensity + Math.sin(this.time * 8 + light.flicker * 50) * light.flicker * 0.7;
 
@@ -676,10 +879,20 @@ export class GameWorld {
             light.x, light.y - 25, 0,
             light.x, light.y - 25, 200
         );
-        glowGradient.addColorStop(0, `rgba(255, 140, 60, ${flicker * 0.15})`);
-        glowGradient.addColorStop(0.3, `rgba(255, 100, 40, ${flicker * 0.08})`);
-        glowGradient.addColorStop(0.6, `rgba(200, 80, 30, ${flicker * 0.03})`);
-        glowGradient.addColorStop(1, 'rgba(100, 50, 20, 0)');
+
+        if (isIce) {
+            // Arctic Frost Wisp Glow
+            glowGradient.addColorStop(0, `rgba(56, 189, 248, ${flicker * 0.18})`);
+            glowGradient.addColorStop(0.35, `rgba(14, 165, 233, ${flicker * 0.08})`);
+            glowGradient.addColorStop(0.7, `rgba(2, 132, 199, ${flicker * 0.03})`);
+            glowGradient.addColorStop(1, 'rgba(2, 132, 199, 0)');
+        } else {
+            // Warm Torch Flame Glow
+            glowGradient.addColorStop(0, `rgba(255, 140, 60, ${flicker * 0.15})`);
+            glowGradient.addColorStop(0.3, `rgba(255, 100, 40, ${flicker * 0.08})`);
+            glowGradient.addColorStop(0.6, `rgba(200, 80, 30, ${flicker * 0.03})`);
+            glowGradient.addColorStop(1, 'rgba(100, 50, 20, 0)');
+        }
         ctx.fillStyle = glowGradient;
         ctx.fillRect(light.x - 200, light.y - 225, 400, 400);
 
@@ -688,44 +901,72 @@ export class GameWorld {
             light.x, this.floorY, 0,
             light.x, this.floorY, 120
         );
-        groundGlow.addColorStop(0, `rgba(255, 150, 80, ${flicker2 * 0.12})`);
-        groundGlow.addColorStop(0.5, `rgba(200, 100, 50, ${flicker2 * 0.05})`);
-        groundGlow.addColorStop(1, 'rgba(100, 50, 20, 0)');
+        if (isIce) {
+            groundGlow.addColorStop(0, `rgba(56, 189, 248, ${flicker2 * 0.15})`);
+            groundGlow.addColorStop(0.5, `rgba(14, 165, 233, ${flicker2 * 0.06})`);
+            groundGlow.addColorStop(1, 'rgba(2, 132, 199, 0)');
+        } else {
+            groundGlow.addColorStop(0, `rgba(255, 150, 80, ${flicker2 * 0.12})`);
+            groundGlow.addColorStop(0.5, `rgba(200, 100, 50, ${flicker2 * 0.05})`);
+            groundGlow.addColorStop(1, 'rgba(100, 50, 20, 0)');
+        }
         ctx.fillStyle = groundGlow;
         ctx.fillRect(light.x - 120, this.floorY - 30, 240, 80);
 
         // Torch bracket
-        ctx.fillStyle = '#2a2520';
+        ctx.fillStyle = isIce ? '#1e3852' : '#2a2520';
         ctx.fillRect(light.x - 4, light.y - 35, 8, 40);
 
         // Torch head
-        ctx.fillStyle = '#3a3020';
+        ctx.fillStyle = isIce ? '#38bdf8' : '#3a3020';
         ctx.fillRect(light.x - 6, light.y - 40, 12, 12);
 
         // Flame layers
         const flameHeight = 20 + Math.sin(this.time * 15) * 4;
 
-        // Outer flame (darker)
-        ctx.fillStyle = `rgba(200, 80, 30, ${flicker * 0.8})`;
-        ctx.beginPath();
-        ctx.moveTo(light.x, light.y - 52);
-        ctx.quadraticCurveTo(light.x - 10, light.y - 45 - flameHeight * 0.3, light.x, light.y - 40 - flameHeight);
-        ctx.quadraticCurveTo(light.x + 10, light.y - 45 - flameHeight * 0.3, light.x, light.y - 52);
-        ctx.fill();
+        if (isIce) {
+            // Cold Frost Spirit Flame
+            ctx.fillStyle = `rgba(14, 165, 233, ${flicker * 0.85})`;
+            ctx.beginPath();
+            ctx.moveTo(light.x, light.y - 52);
+            ctx.quadraticCurveTo(light.x - 10, light.y - 45 - flameHeight * 0.3, light.x, light.y - 40 - flameHeight);
+            ctx.quadraticCurveTo(light.x + 10, light.y - 45 - flameHeight * 0.3, light.x, light.y - 52);
+            ctx.fill();
 
-        // Inner flame (brighter)
-        ctx.fillStyle = `rgba(255, 180, 80, ${flicker * 0.9})`;
-        ctx.beginPath();
-        ctx.moveTo(light.x, light.y - 52);
-        ctx.quadraticCurveTo(light.x - 6, light.y - 48 - flameHeight * 0.3, light.x, light.y - 42 - flameHeight * 0.7);
-        ctx.quadraticCurveTo(light.x + 6, light.y - 48 - flameHeight * 0.3, light.x, light.y - 52);
-        ctx.fill();
+            ctx.fillStyle = `rgba(186, 230, 253, ${flicker * 0.95})`;
+            ctx.beginPath();
+            ctx.moveTo(light.x, light.y - 52);
+            ctx.quadraticCurveTo(light.x - 6, light.y - 48 - flameHeight * 0.3, light.x, light.y - 42 - flameHeight * 0.7);
+            ctx.quadraticCurveTo(light.x + 6, light.y - 48 - flameHeight * 0.3, light.x, light.y - 52);
+            ctx.fill();
 
-        // Core (hottest)
-        ctx.fillStyle = `rgba(255, 240, 200, ${flicker * 0.7})`;
-        ctx.beginPath();
-        ctx.arc(light.x, light.y - 48, 3 + Math.sin(this.time * 20) * 1, 0, Math.PI * 2);
-        ctx.fill();
+            ctx.fillStyle = `rgba(255, 255, 255, ${flicker})`;
+            ctx.beginPath();
+            ctx.arc(light.x, light.y - 45, 3, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Outer flame (darker)
+            ctx.fillStyle = `rgba(200, 80, 30, ${flicker * 0.8})`;
+            ctx.beginPath();
+            ctx.moveTo(light.x, light.y - 52);
+            ctx.quadraticCurveTo(light.x - 10, light.y - 45 - flameHeight * 0.3, light.x, light.y - 40 - flameHeight);
+            ctx.quadraticCurveTo(light.x + 10, light.y - 45 - flameHeight * 0.3, light.x, light.y - 52);
+            ctx.fill();
+
+            // Inner flame (brighter)
+            ctx.fillStyle = `rgba(255, 180, 80, ${flicker * 0.9})`;
+            ctx.beginPath();
+            ctx.moveTo(light.x, light.y - 52);
+            ctx.quadraticCurveTo(light.x - 6, light.y - 48 - flameHeight * 0.3, light.x, light.y - 42 - flameHeight * 0.7);
+            ctx.quadraticCurveTo(light.x + 6, light.y - 48 - flameHeight * 0.3, light.x, light.y - 52);
+            ctx.fill();
+
+            // Core (hottest)
+            ctx.fillStyle = `rgba(255, 240, 200, ${flicker})`;
+            ctx.beginPath();
+            ctx.arc(light.x, light.y - 45, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
     renderAmbientParticles(ctx) {

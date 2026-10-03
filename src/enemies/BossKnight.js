@@ -8,10 +8,10 @@ import { player, vfxManager, audioManager, camera } from '../main.js';
 
 const BOSS_SHEETS = {
     idle: { file: 'Knight-villain-boss/noBKG_KnightIdle_strip.png', cellW: 64, cellH: 64, frames: 15, fps: 12, anchorX: 35, anchorY: 44 },
-    run: { file: 'Knight-villain-boss/noBKG_KnightRun_strip.png', cellW: 64, cellH: 64, frames: 12, fps: 14, anchorX: 35, anchorY: 44 },
-    attack: { file: 'Knight-villain-boss/noBKG_KnightAttack_strip.png', cellW: 144, cellH: 64, frames: 22, fps: 15, anchorX: 60, anchorY: 44 },
-    shield: { file: 'Knight-villain-boss/noBKG_KnightShield_strip.png', cellW: 96, cellH: 64, frames: 7, fps: 10, anchorX: 45, anchorY: 44 },
-    death: { file: 'Knight-villain-boss/noBKG_KnightDeath_strip.png', cellW: 72, cellH: 64, frames: 20, fps: 8, anchorX: 36, anchorY: 44 }
+    run: { file: 'Knight-villain-boss/noBKG_KnightRun_strip.png', cellW: 96, cellH: 64, frames: 8, fps: 11, anchorX: 56, anchorY: 44 },
+    attack: { file: 'Knight-villain-boss/noBKG_KnightAttack_strip.png', cellW: 144, cellH: 64, frames: 22, fps: 15, anchorX: 70, anchorY: 44 },
+    shield: { file: 'Knight-villain-boss/noBKG_KnightShield_strip.png', cellW: 96, cellH: 64, frames: 7, fps: 10, anchorX: 50, anchorY: 44 },
+    death: { file: 'Knight-villain-boss/noBKG_KnightDeath_strip.png', cellW: 96, cellH: 64, frames: 15, fps: 9, anchorX: 52, anchorY: 44 }
 };
 
 const imageCache = {};
@@ -150,7 +150,7 @@ export class BossKnight extends Enemy {
         if (this.isDead) {
             animKey = 'death';
             const progress = Math.min(1, this.deathTimer / 1.4);
-            frame = Math.min(19, Math.floor(progress * 20));
+            frame = Math.min(14, Math.floor(progress * 15));
         } else if (this.isBlocking) {
             animKey = 'shield';
             frame = Math.min(6, Math.floor(this.stateTime * 10));
@@ -159,7 +159,7 @@ export class BossKnight extends Enemy {
             frame = Math.min(21, Math.floor(this.stateTime * 15));
         } else if (this.state === 'chase' || Math.abs(this.vx) > 10) {
             animKey = 'run';
-            frame = Math.floor(this.animTime * 14) % 12;
+            frame = Math.floor(this.animTime * 11) % 8;
         } else {
             animKey = 'idle';
             frame = Math.floor(this.animTime * 12) % 15;

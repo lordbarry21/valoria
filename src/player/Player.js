@@ -516,25 +516,42 @@ export class Player {
 
     attack() {
         const sm = this.stateMachine;
-        if (!this.grounded) return;
+        if (sm.currentState === 'Climb' || sm.currentState === 'Death' || sm.currentState === 'Hurt' || sm.currentState === 'Dodge') return;
         if (sm.currentState !== 'Attack' && !sm.canTransition('Attack')) return;
 
         // Knight has 3-hit combo, girl warriors have crisp 2-hit basic combo
+        const isAir = !this.grounded;
         const maxCombo = this.characterId === 'knight' ? 3 : 2;
         const continuingCombo = this.comboTimer > 0 && this.comboCount > 0;
         this.comboCount = continuingCombo ? (this.comboCount % maxCombo) + 1 : 1;
-        this.executeAttack();
+        this.executeAttack(isAir);
     }
 
-    executeAttack() {
+    executeAttack(isAir = false) {
         const attacks = getComboAttacks(this.isRaging);
-        this.currentAttack = attacks[Math.min(this.comboCount - 1, attacks.length - 1)];
+        const baseAttack = attacks[Math.min(this.comboCount - 1, attacks.length - 1)];
+
+        if (isAir) {
+            // Aerial attack: extended upward and forward reach to slice bats and flying eyes in the air!
+            this.currentAttack = {
+                ...baseAttack,
+                damage: baseAttack.damage * 1.2,
+                hitbox: { x: 55, y: -75, width: 145, height: 100 },
+                moveForce: 60
+            };
+            // Mild air glide / hang so aerial hits feel fluid and easy to land
+            this.vy = Math.min(this.vy, 40);
+            this.vx = this.facing * 140;
+        } else {
+            this.currentAttack = baseAttack;
+            this.vx = this.facing * this.currentAttack.moveForce * 0.8;
+        }
+
         const { startup, active, recovery } = this.currentAttack;
 
         this.stateMachine.setState('Attack');
         this.stateMachine.setAttackTiming(startup, active, recovery);
         this.attackHitEnemies.clear();
-        this.vx = this.facing * this.currentAttack.moveForce * 0.8;
 
         this.comboTimer = startup + active + recovery + this.comboWindow;
 
@@ -614,7 +631,7 @@ export class Player {
     useSkill(slotKey) {
         const skill = this.skills[slotKey];
         if (!skill || skill.cooldown > 0) return;
-        if (!this.grounded || !this.stateMachine.canTransition('SkillCast')) return;
+        if (!this.stateMachine.canTransition('SkillCast')) return;
 
         if (slotKey === 'skill3' && this.rage < this.maxRage && !this.isRaging) return;
 
@@ -1010,6 +1027,10 @@ export class Player {
         if (state === 'Attack') {
             const total = this.currentAttack ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery) : 0.4;
             const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+            if (!this.grounded) {
+                // Aerial downward cleave in mid-air
+                return { cfg: KNIGHT_ANIMATIONS.attack2, frame: Math.min(5, Math.floor(p * 6)) };
+            }
             if (this.comboCount === 1) return { cfg: KNIGHT_ANIMATIONS.attack1, frame: Math.floor(p * 4) };
             if (this.comboCount === 2) return { cfg: KNIGHT_ANIMATIONS.attack2, frame: Math.floor(p * 6) };
             return { cfg: KNIGHT_ANIMATIONS.attack3, frame: Math.floor(p * 10) };
@@ -1127,9 +1148,18 @@ export class Player {
             return { row: 14, col: Math.floor(sm.stateTime * 8) % 2 };
         }
         if (state === 'Climb') {
-            const f = Math.floor(this.climbAnimProgress) % 5;
-            if (f < 3) return { row: 16, col: 3 + f };
-            return { row: 17, col: f - 3 };
+            const ladderFrames = [
+                { row: 15, col: 1 },
+                { row: 15, col: 2 },
+                { row: 15, col: 3 },
+                { row: 15, col: 4 },
+                { row: 15, col: 5 },
+                { row: 16, col: 0 },
+                { row: 16, col: 1 },
+                { row: 16, col: 2 }
+            ];
+            const f = Math.floor(this.climbAnimProgress) % ladderFrames.length;
+            return ladderFrames[f];
         }
         if (state === 'Dodge') {
             const p = 1 - Math.max(0, this.dodgeTimer / this.dodgeDuration);
@@ -1139,6 +1169,18 @@ export class Player {
             const total = this.currentAttack ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery) : 0.35;
             const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
             const frameIdx = Math.floor(p * 4);
+
+            if (!this.grounded) {
+                // Mid-air spin slash (Row 3 cols 4..5, Row 4 cols 0..1)
+                const airSpin = [
+                    { row: 3, col: 4 },
+                    { row: 3, col: 5 },
+                    { row: 4, col: 0 },
+                    { row: 4, col: 1 }
+                ];
+                return airSpin[Math.min(3, frameIdx)];
+            }
+
             if (this.comboCount === 1) {
                 // Combo 1: Attack 1 (Row 2, cols 2, 3, 4, 5)
                 const c1 = [2, 3, 4, 5];
