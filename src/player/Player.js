@@ -1,6 +1,6 @@
 ﻿/**
- * VALORIA - Player Character (The Warrior)
- * Sprite-based knight with animations
+ * VALORIA - Player Character (The Knight)
+ * Animated pixel-art knight using the FreeKnight sprite pack.
  */
 
 import { inputManager, audioManager, camera, vfxManager, gameWorld, playerDied } from '../main.js';
@@ -11,12 +11,29 @@ const STEERABLE_STATES = new Set(['Idle', 'Walk', 'Run', 'Jump', 'Fall']);
 const SKILL_FRICTION = 600;
 const DEATH_SCREEN_DELAY = 1.5;
 
+// FreeKnight sprite definitions (all frames are 120x80, centered around anchorX=55, anchorY=80)
+const KNIGHT_ANIMATIONS = {
+    idle: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Idle.png', frames: 10, fps: 10, loop: true },
+    run: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Run.png', frames: 10, fps: 14, loop: true },
+    jump: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Jump.png', frames: 3, fps: 6, loop: false },
+    fall: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Fall.png', frames: 3, fps: 6, loop: false },
+    attack1: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Attack.png', frames: 4, fps: 10, loop: false },
+    attack2: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Attack2.png', frames: 6, fps: 12, loop: false },
+    attack3: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_AttackCombo2hit.png', frames: 10, fps: 14, loop: false },
+    crouch_attack: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_CrouchAttack.png', frames: 4, fps: 10, loop: false },
+    dash: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Dash.png', frames: 2, fps: 10, loop: false },
+    roll: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Roll.png', frames: 12, fps: 20, loop: false },
+    hit: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Hit.png', frames: 1, fps: 1, loop: false },
+    death: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Death.png', frames: 10, fps: 8, loop: false },
+};
+
 export class Player {
     constructor() {
         this.x = 400;
         this.y = 500;
-        this.width = 128;
-        this.height = 128;
+        // Hitbox dimensions that match the 2x scaled knight sprite
+        this.width = 44;
+        this.height = 76;
 
         this.vx = 0;
         this.vy = 0;
@@ -54,13 +71,13 @@ export class Player {
         this.attackHitEnemies = new Set();
 
         this.dodgeSpeed = 600;
-        this.dodgeDuration = 0.15;
+        this.dodgeDuration = 0.22;
         this.dodgeTimer = 0;
         this.dodgeCooldown = 0;
         this.dodgeCooldownMax = 0.6;
         this.dodgeDirection = 1;
         this.isInvulnerable = false;
-        this.invulnerabilityTimer = 0.2;
+        this.invulnerabilityTimer = 0.22;
 
         this.heavyChargeTime = 0;
         this.heavyChargeMax = 1.0;
@@ -87,105 +104,28 @@ export class Player {
         this.deathTimer = 0;
         this.deathReported = false;
 
-        // Sprite loading
+        // Preload FreeKnight sprite sheets
         this.sprites = {};
-        this.spriteLoaded = false;
-        this.currentFrame = 0;
-        this.animFrame = 0;
-
-        // Load sprites
-        this.loadSprites();
+        this.preloadSprites();
     }
 
-    loadSprites() {
-        const basePath = '../../Assets/Assets/PNG/';
-
-        const spriteConfigs = {
-            'idle': { file: 'Knight-Idle-Sheet.png', cols: 4, frameWidth: 128, frameHeight: 128 },
-            'walk': { file: 'Knight-Walk-Sheet.png', cols: 6, frameWidth: 128, frameHeight: 128 },
-            'attack': { file: 'Knight-Attack-Sheet.png', cols: 6, frameWidth: 128, frameHeight: 128 }
-        };
-
-        let loadedCount = 0;
-        const totalSprites = Object.keys(spriteConfigs).length;
-
-        for (const [name, config] of Object.entries(spriteConfigs)) {
+    preloadSprites() {
+        for (const [key, cfg] of Object.entries(KNIGHT_ANIMATIONS)) {
             const img = new Image();
+            img.src = cfg.file;
+            this.sprites[key] = {
+                image: img,
+                frames: cfg.frames,
+                fps: cfg.fps,
+                loop: cfg.loop,
+                loaded: false
+            };
             img.onload = () => {
-                this.sprites[name] = {
-                    image: img,
-                    cols: config.cols,
-                    frameWidth: config.frameWidth,
-                    frameHeight: config.frameHeight,
-                    frames: config.cols
-                };
-                loadedCount++;
-                if (loadedCount >= totalSprites) {
-                    this.spriteLoaded = true;
-                }
+                this.sprites[key].loaded = true;
             };
             img.onerror = () => {
-                console.warn('Failed to load sprite: ' + config.file);
-                loadedCount++;
+                console.warn('Failed to load knight sprite:', cfg.file);
             };
-            img.src = basePath + config.file;
-        }
-    }
-
-    getSpriteForState() {
-        const state = this.stateMachine.currentState;
-
-        if (state === 'Attack' || state === 'SkillCast') {
-            return 'attack';
-        }
-        if (state === 'Idle' || state === 'Hurt' || state === 'Death' || state === 'Land') {
-            return 'idle';
-        }
-        if (state === 'Walk' || state === 'Run' || state === 'Jump' || state === 'Fall' || state === 'Dodge') {
-            return 'walk';
-        }
-        return 'idle';
-    }
-
-    getCurrentFrame() {
-        const spriteName = this.getSpriteForState();
-        const sprite = this.sprites[spriteName];
-        if (!sprite) return { x: 0, y: 0, w: 128, h: 128 };
-
-        const frame = Math.floor(this.animFrame) % sprite.frames;
-        return {
-            x: frame * sprite.frameWidth,
-            y: 0,
-            w: sprite.frameWidth,
-            h: sprite.frameHeight
-        };
-    }
-
-    updateAnimation(dt) {
-        const state = this.stateMachine.currentState;
-        const spriteName = this.getSpriteForState();
-        const sprite = this.sprites[spriteName];
-
-        if (!sprite) {
-            this.animTime += dt;
-            return;
-        }
-
-        // Animation speed based on state
-        let speed = 8; // frames per second
-        switch (state) {
-            case 'Idle': speed = 4; break;
-            case 'Walk': case 'Run': speed = 10; break;
-            case 'Attack': speed = 12; break;
-            case 'Jump': case 'Fall': speed = 6; break;
-            default: speed = 8;
-        }
-
-        this.animFrame += speed * dt;
-
-        // Reset frame for attack after animation completes
-        if (state === 'Attack' && this.animFrame >= sprite.frames) {
-            this.animFrame = 0;
         }
     }
 
@@ -248,7 +188,8 @@ export class Player {
         this.stateMachine.update(dt);
         this.applyPhysics(dt);
         this.updateResources(dt);
-        this.updateAnimation(dt);
+
+        this.animTime += dt;
     }
 
     updateDeath(dt) {
@@ -570,87 +511,167 @@ export class Player {
         }
     }
 
+    // Resolves current animation sheet and frame based on player state
+    getAnimation() {
+        const sm = this.stateMachine;
+        const state = sm.currentState;
+
+        if (this.isDead || state === 'Death') {
+            const progress = Math.min(1, this.deathTimer / 1.0);
+            return { name: 'death', frame: Math.min(9, Math.floor(progress * 10)) };
+        }
+
+        if (state === 'Hurt' || this.hurtTimer > 0) {
+            return { name: 'hit', frame: 0 };
+        }
+
+        if (state === 'Dodge') {
+            const progress = 1 - Math.max(0, this.dodgeTimer / this.dodgeDuration);
+            return { name: 'roll', frame: Math.min(11, Math.floor(progress * 12)) };
+        }
+
+        if (state === 'Attack') {
+            const total = this.currentAttack
+                ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery)
+                : 0.4;
+            const progress = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+            if (this.comboCount === 1) {
+                return { name: 'attack1', frame: Math.floor(progress * 4) };
+            } else if (this.comboCount === 2) {
+                return { name: 'attack2', frame: Math.floor(progress * 6) };
+            } else {
+                return { name: 'attack3', frame: Math.floor(progress * 10) };
+            }
+        }
+
+        if (state === 'HeavyAttack') {
+            if (this.isChargingHeavy) {
+                const charge = this.heavyChargeTime / this.heavyChargeMax;
+                return { name: 'crouch_attack', frame: Math.min(1, Math.floor(charge * 2)) };
+            } else {
+                const total = this.currentAttack
+                    ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery)
+                    : 0.5;
+                const progress = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+                return { name: 'crouch_attack', frame: Math.min(3, 2 + Math.floor(progress * 2)) };
+            }
+        }
+
+        if (state === 'SkillCast') {
+            if (this.currentAttack?.id === 'valor_strike') {
+                const total = this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery;
+                const progress = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+                return { name: 'dash', frame: Math.min(1, Math.floor(progress * 2)) };
+            }
+            if (this.currentAttack?.id === 'iron_breaker') {
+                const total = this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery;
+                const progress = Math.min(0.999, Math.max(0, sm.attackProgress / total));
+                return { name: 'crouch_attack', frame: Math.min(3, Math.floor(progress * 4)) };
+            }
+            return { name: 'attack2', frame: Math.floor((this.animTime * 10) % 6) };
+        }
+
+        if (state === 'Jump') {
+            const frame = this.vy < -250 ? 0 : (this.vy < 0 ? 1 : 2);
+            return { name: 'jump', frame };
+        }
+
+        if (state === 'Fall') {
+            const frame = Math.min(2, Math.floor(sm.stateTime * 6));
+            return { name: 'fall', frame };
+        }
+
+        if (state === 'Walk' || state === 'Run') {
+            return { name: 'run', frame: Math.floor(this.animTime * 13) % 10 };
+        }
+
+        // Default: Idle
+        return { name: 'idle', frame: Math.floor(this.animTime * 10) % 10 };
+    }
+
     render(ctx) {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.scale(this.facing, 1);
-        if (this.hurtTimer > 0 && Math.floor(this.hurtTimer * 20) % 2 === 0) ctx.globalAlpha = 0.5;
 
-        if (this.isDead) {
-            const fall = Math.min(1, this.deathTimer / 0.5);
-            ctx.rotate(-fall * Math.PI / 2);
-            ctx.globalAlpha = 1 - Math.min(0.6, this.deathTimer / DEATH_SCREEN_DELAY);
+        // Pixel-art crisp rendering
+        ctx.imageSmoothingEnabled = false;
+
+        if (this.hurtTimer > 0 && Math.floor(this.hurtTimer * 20) % 2 === 0) {
+            ctx.globalAlpha = 0.55;
+        }
+
+        if (this.stateMachine.currentState === 'Dodge') {
+            ctx.globalAlpha = 0.75;
         }
 
         this.drawSprite(ctx);
+
+        if (this.isRaging) {
+            this.drawRageAura(ctx);
+        }
+
         ctx.restore();
     }
 
     drawSprite(ctx) {
-        // Draw sprite if loaded
-        if (!this.spriteLoaded) {
-            // Fallback: draw placeholder while loading
-            ctx.fillStyle = '#666';
+        const anim = this.getAnimation();
+        const sheet = this.sprites[anim.name];
+
+        // Soft grounded shadow beneath feet
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        ctx.ellipse(0, 2, 22, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (!sheet || !sheet.loaded) {
+            // Crisp fallback while sprite is loading
+            ctx.fillStyle = '#4a4035';
             ctx.fillRect(-this.width / 2, -this.height, this.width, this.height);
-            ctx.fillStyle = '#888';
-            ctx.font = '12px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('Loading...', 0, -this.height / 2);
             return;
         }
 
-        const frame = this.getCurrentFrame();
-        const spriteName = this.getSpriteForState();
-        const sprite = this.sprites[spriteName];
+        const frameW = 120;
+        const frameH = 80;
+        const scale = 2.0;
+        const anchorX = 55;
+        const anchorY = 80;
 
-        if (!sprite || !sprite.image) return;
+        const sx = anim.frame * frameW;
+        const sy = 0;
+        const dx = -anchorX * scale;
+        const dy = -anchorY * scale;
+        const dw = frameW * scale;
+        const dh = frameH * scale;
 
-        // Draw shadow beneath feet
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath();
-        ctx.ellipse(0, 2, 35, 10, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw sprite - sprite sheet frames are laid out horizontally
-        // Each frame is 128x128, draw centered at feet
-        ctx.drawImage(
-            sprite.image,
-            frame.x, frame.y, frame.w, frame.h,
-            -this.width / 2, -this.height, this.width, this.height
-        );
-
-        // Rage aura effect
-        if (this.isRaging) {
-            this.drawRageAura(ctx);
-        }
+        ctx.drawImage(sheet.image, sx, sy, frameW, frameH, dx, dy, dw, dh);
     }
 
     drawRageAura(ctx) {
         const t = this.animTime;
-
-        // Glowing aura behind character
         ctx.save();
-        ctx.globalAlpha = 0.3;
+        ctx.globalAlpha = 0.4;
 
-        // Outer glow ring
-        ctx.strokeStyle = '#ff4400';
-        ctx.lineWidth = 4;
+        // Glowing red/orange aura circle
+        const auraY = -this.height / 2;
+        ctx.strokeStyle = '#ff3300';
+        ctx.lineWidth = 3;
         ctx.shadowColor = '#ff4400';
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 16;
         ctx.beginPath();
-        ctx.arc(0, -this.height / 2, 50 + Math.sin(t * 3) * 5, 0, Math.PI * 2);
+        ctx.arc(0, auraY, 44 + Math.sin(t * 5) * 4, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Inner flame particles
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2 + t * 2;
-            const dist = 35 + Math.sin(t * 4 + i) * 8;
+        // Rising embers
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 + t * 2.5;
+            const dist = 30 + Math.sin(t * 4 + i) * 8;
             const px = Math.cos(angle) * dist;
-            const py = -this.height / 2 + Math.sin(angle) * dist * 0.6;
+            const py = auraY + Math.sin(angle) * dist * 0.7;
 
-            ctx.fillStyle = 'rgba(255, 100, 30, 0.6)';
+            ctx.fillStyle = `rgba(255, ${80 + i * 25}, 20, 0.8)`;
             ctx.beginPath();
-            ctx.arc(px, py, 5 + Math.sin(t * 6 + i) * 2, 0, Math.PI * 2);
+            ctx.arc(px, py, 3 + Math.sin(t * 8 + i) * 1.5, 0, Math.PI * 2);
             ctx.fill();
         }
 

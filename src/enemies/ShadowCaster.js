@@ -1,36 +1,48 @@
 /**
- * VALORIA - Shadow Caster Enemy
- * Ranged attacker with mystical dark magic appearance
+ * VALORIA - Shadow Caster / Necromancer Enemy
+ * Ranged attacker using the animated CreativeKind Necromancer boss sprite sheet.
  */
 
 import { Enemy } from './Enemy.js';
 import { player, audioManager, vfxManager, camera } from '../main.js';
 
+let necroImg = null;
+let necroLoaded = false;
+
+function preloadNecromancer() {
+    if (necroImg) return;
+    necroImg = new Image();
+    necroImg.src = 'Necromancer_creativekind-Sheet.png';
+    necroImg.onload = () => { necroLoaded = true; };
+}
+
 export class ShadowCaster extends Enemy {
     constructor() {
         super();
 
-        this.name = 'Shadow Caster';
-        this.width = 35;
-        this.height = 70;
+        this.name = 'Necromancer';
+        this.width = 46;
+        this.height = 82;
 
-        // Health - lower
-        this.maxHealth = 30;
-        this.health = 30;
+        // Health
+        this.maxHealth = 60;
+        this.health = 60;
 
         // Combat
-        this.damage = 15;
+        this.damage = 18;
         this.attackRange = 400;
-        this.attackCooldownMax = 2.5;
+        this.attackCooldownMax = 2.4;
 
         // AI
-        this.aggroRange = 350;
-        this.moveSpeed = 80;
-        this.preferDistance = 250;
+        this.aggroRange = 380;
+        this.moveSpeed = 85;
+        this.preferDistance = 260;
 
         // Projectile
         this.projectiles = [];
-        this.projectileSpeed = 300;
+        this.projectileSpeed = 320;
+
+        preloadNecromancer();
     }
 
     init() {
@@ -69,7 +81,7 @@ export class ShadowCaster extends Enemy {
 
             case 'attack':
                 this.vx = 0;
-                if (this.stateTime > 0.8) {
+                if (this.stateTime > 0.85) {
                     this.setState('cooldown');
                     this.attackCooldown = this.attackCooldownMax;
                     this.isAttacking = false;
@@ -78,8 +90,8 @@ export class ShadowCaster extends Enemy {
 
             case 'cooldown':
                 // Retreat while cooling down
-                if (distToPlayer < 150) {
-                    this.vx = -dirToPlayer * this.moveSpeed * 0.5;
+                if (distToPlayer < 180) {
+                    this.vx = -dirToPlayer * this.moveSpeed * 0.6;
                     this.x += this.vx * dt;
                 } else {
                     this.vx = 0;
@@ -102,13 +114,13 @@ export class ShadowCaster extends Enemy {
 
     castProjectile() {
         this.projectiles.push({
-            x: this.x,
-            y: this.y - 40,
+            x: this.x + this.facing * 25,
+            y: this.y - 45,
             vx: this.facing * this.projectileSpeed,
             vy: 0,
             damage: this.damage,
             hit: false,
-            life: 3
+            life: 3.5
         });
     }
 
@@ -152,169 +164,86 @@ export class ShadowCaster extends Enemy {
     }
 
     renderProjectile(ctx, p) {
-        const t = this.animTime;
-
-        // Outer glow
-        ctx.fillStyle = 'rgba(136, 68, 255, 0.2)';
+        // Outer dark purple glow
+        ctx.fillStyle = 'rgba(136, 68, 255, 0.25)';
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
         ctx.fill();
 
-        // Middle glow
-        ctx.fillStyle = 'rgba(136, 68, 255, 0.4)';
+        // Middle aura
+        ctx.fillStyle = 'rgba(170, 100, 255, 0.5)';
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 13, 0, Math.PI * 2);
         ctx.fill();
 
-        // Core
-        ctx.fillStyle = '#aa66ff';
+        // Bright skull-like core
+        ctx.fillStyle = '#eeddff';
         ctx.beginPath();
         ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // Bright center
-        ctx.fillStyle = '#ddbbff';
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Trailing particles
+        // Trail
         ctx.globalAlpha = 0.6;
-        for (let i = 0; i < 3; i++) {
-            const trailX = p.x - p.vx * 0.02 * (i + 1);
-            const trailY = p.y - p.vy * 0.02 * (i + 1);
-            const trailSize = 4 - i;
-
-            ctx.fillStyle = `rgba(136, 68, 255, ${0.5 - i * 0.15})`;
+        for (let i = 0; i < 4; i++) {
+            const tx = p.x - p.vx * 0.02 * (i + 1);
+            const ty = p.y;
+            ctx.fillStyle = `rgba(140, 70, 255, ${0.5 - i * 0.12})`;
             ctx.beginPath();
-            ctx.arc(trailX, trailY, trailSize, 0, Math.PI * 2);
+            ctx.arc(tx, ty, 5 - i, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.globalAlpha = 1;
     }
 
     drawBody(ctx) {
-        const t = this.animTime;
-        const aggro = this.isAggro;
-        const hurtFlash = this.hitStunTime > 0.1;
+        ctx.imageSmoothingEnabled = false;
 
-        // Shadow
-        ctx.fillStyle = 'rgba(15, 5, 25, 0.3)';
+        // Ground shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
         ctx.beginPath();
-        ctx.ellipse(0, 0, 14, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 2, 26, 7, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Floating robe
-        const robeColor = hurtFlash ? '#2a1540' : (aggro ? '#1a0a30' : '#120818');
-        ctx.fillStyle = robeColor;
+        let row = 0;
+        let frame = 0;
 
-        // Main robe shape (floating)
-        const floatOffset = Math.sin(t * 2) * 3;
-
-        ctx.beginPath();
-        ctx.moveTo(-15, floatOffset);
-        ctx.quadraticCurveTo(-13, -25, -10, -42);
-        ctx.lineTo(0, -52);
-        ctx.lineTo(10, -42);
-        ctx.quadraticCurveTo(13, -25, 15, floatOffset);
-        ctx.closePath();
-        ctx.fill();
-
-        // Robe inner darkness
-        ctx.fillStyle = '#080410';
-        ctx.beginPath();
-        ctx.moveTo(-8, floatOffset + 2);
-        ctx.quadraticCurveTo(-6, -20, -4, -38);
-        ctx.lineTo(4, -38);
-        ctx.quadraticCurveTo(6, -20, 8, floatOffset + 2);
-        ctx.closePath();
-        ctx.fill();
-
-        // Hooded head
-        ctx.fillStyle = robeColor;
-        ctx.beginPath();
-        ctx.arc(0, -58 + floatOffset, 13, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Hood shadow
-        ctx.fillStyle = '#050308';
-        ctx.beginPath();
-        ctx.ellipse(0, -56 + floatOffset, 9, 7, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Glowing eyes
-        const eyeColor = aggro ? '#cc66ff' : '#663399';
-        const eyeGlow = aggro ? 10 : 4;
-
-        if (eyeGlow > 4) {
-            ctx.shadowColor = '#aa44ff';
-            ctx.shadowBlur = eyeGlow;
+        if (this.isDead) {
+            row = 6; // Death (10 frames)
+            const progress = Math.min(1, this.deathTimer / 1.1);
+            frame = Math.min(9, Math.floor(progress * 10));
+        } else if (this.hitStunTime > 0 || this.state === 'hurt') {
+            row = 5; // Hurt (5 frames)
+            frame = Math.min(4, Math.floor(this.stateTime * 10));
+        } else if (this.state === 'attack' || this.isAttacking) {
+            row = 2; // Attack1 / Cast (13 frames)
+            frame = Math.min(12, Math.floor((this.stateTime / 0.85) * 13));
+        } else if (this.state === 'approach' || this.state === 'cooldown' || Math.abs(this.vx) > 10) {
+            row = 1; // Move (8 frames)
+            frame = Math.floor(this.animTime * 9) % 8;
+        } else {
+            row = 0; // Idle (8 frames)
+            frame = Math.floor(this.animTime * 7) % 8;
         }
 
-        ctx.fillStyle = eyeColor;
-        ctx.beginPath();
-        ctx.arc(-4, -58 + floatOffset, 3, 0, Math.PI * 2);
-        ctx.arc(4, -58 + floatOffset, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.shadowBlur = 0;
-
-        // Staff
-        ctx.fillStyle = '#2a2030';
-        ctx.save();
-        ctx.translate(18, -45 + floatOffset);
-        ctx.rotate(0.1 + Math.sin(t * 1.5) * 0.05);
-
-        // Staff pole
-        ctx.fillRect(-2, -25, 4, 55);
-
-        // Crystal holder
-        ctx.fillStyle = '#1a1525';
-        ctx.fillRect(-4, -30, 8, 8);
-
-        // Crystal
-        const crystalColor = aggro ? '#aa66ff' : '#8844cc';
-        ctx.fillStyle = crystalColor;
-        ctx.beginPath();
-        ctx.arc(0, -38, 8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Crystal glow
-        if (aggro) {
-            ctx.shadowColor = '#aa66ff';
-            ctx.shadowBlur = 15;
+        if (!necroLoaded || !necroImg) {
+            ctx.fillStyle = '#2a1535';
+            ctx.fillRect(-this.width / 2, -this.height, this.width, this.height);
+            return;
         }
 
-        ctx.fillStyle = aggro ? '#cc88ff' : '#aa66ee';
-        ctx.beginPath();
-        ctx.arc(0, -38, 5, 0, Math.PI * 2);
-        ctx.fill();
+        const cellW = 160;
+        const cellH = 128;
+        const scale = 1.7;
+        const anchorX = 83;
+        const anchorY = 115;
 
-        ctx.shadowBlur = 0;
+        const sx = frame * cellW;
+        const sy = row * cellH;
+        const dx = -anchorX * scale;
+        const dy = -anchorY * scale;
+        const dw = cellW * scale;
+        const dh = cellH * scale;
 
-        ctx.restore();
-
-        // Floating magical particles
-        ctx.globalAlpha = 0.6;
-        for (let i = 0; i < 5; i++) {
-            const px = Math.sin(t * 1.8 + i * 1.2) * 14;
-            const py = -25 + Math.cos(t * 2.2 + i) * 12 - i * 6 + floatOffset;
-            const particleColor = aggro ? 'rgba(170, 100, 255,' : 'rgba(136, 68, 204,';
-
-            ctx.fillStyle = particleColor + '0.5)';
-            ctx.beginPath();
-            ctx.arc(px, py, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-
-        // Casting effect when attacking
-        if (this.isAttacking && this.stateTime < 0.4) {
-            const castAlpha = (1 - this.stateTime / 0.4) * 0.3;
-            ctx.fillStyle = `rgba(136, 68, 255, ${castAlpha})`;
-            ctx.beginPath();
-            ctx.arc(0, -38, 30 + this.stateTime * 50, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        ctx.drawImage(necroImg, sx, sy, cellW, cellH, dx, dy, dw, dh);
     }
 }

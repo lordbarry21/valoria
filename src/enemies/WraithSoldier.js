@@ -1,17 +1,40 @@
 /**
- * VALORIA - Wraith Soldier Enemy
- * Basic melee combatant with ethereal dark appearance
+ * VALORIA - Wraith Soldier / Dire Rat Enemy
+ * Fast agile ground melee enemy using the animated Rat sprite pack.
  */
 
 import { Enemy } from './Enemy.js';
+
+const RAT_SHEETS = {
+    idle: { file: 'Rat/OutlinedRat/rat-idle-outline.png', frames: 6, fps: 8 },
+    run: { file: 'Rat/OutlinedRat/rat-run-outline.png', frames: 6, fps: 12 },
+    attack: { file: 'Rat/OutlinedRat/rat-attack-outline.png', frames: 6, fps: 12 },
+    hurt: { file: 'Rat/OutlinedRat/rat-hurt-outline.png', frames: 1, fps: 1 },
+    death: { file: 'Rat/OutlinedRat/rat-death-outline.png', frames: 6, fps: 8 },
+};
+
+// Static cache so we don't recreate images per instance
+const ratImageCache = {};
+let ratPreloadStarted = false;
+
+function preloadRatSprites() {
+    if (ratPreloadStarted) return;
+    ratPreloadStarted = true;
+    for (const [k, v] of Object.entries(RAT_SHEETS)) {
+        const img = new Image();
+        img.src = v.file;
+        ratImageCache[k] = { image: img, loaded: false, frames: v.frames, fps: v.fps };
+        img.onload = () => { ratImageCache[k].loaded = true; };
+    }
+}
 
 export class WraithSoldier extends Enemy {
     constructor() {
         super();
 
-        this.name = 'Wraith Soldier';
-        this.width = 36;
-        this.height = 65;
+        this.name = 'Plague Hound';
+        this.width = 44;
+        this.height = 30;
 
         // Health
         this.maxHealth = 40;
@@ -19,136 +42,67 @@ export class WraithSoldier extends Enemy {
 
         // Combat
         this.damage = 12;
-        this.attackRange = 50;
+        this.attackRange = 45;
         this.attackCooldownMax = 1.2;
 
         // AI
-        this.aggroRange = 250;
-        this.moveSpeed = 120;
+        this.aggroRange = 280;
+        this.moveSpeed = 130;
+
+        preloadRatSprites();
     }
 
     drawBody(ctx) {
-        const t = this.animTime;
-        const aggro = this.isAggro;
+        ctx.imageSmoothingEnabled = false;
 
-        // Shadow - more ethereal
-        ctx.fillStyle = 'rgba(20, 10, 30, 0.3)';
+        // Ground shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.beginPath();
-        ctx.ellipse(0, 0, 16, 4, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 2, 20, 5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Ethereal robe body
-        const robeColor = aggro ? '#2a1535' : '#1a0a25';
-        ctx.fillStyle = robeColor;
+        let animName = 'idle';
+        let frame = 0;
 
-        // Main robe shape
-        ctx.beginPath();
-        ctx.moveTo(-18, 0);
-        ctx.quadraticCurveTo(-16, -30, -12, -45);
-        ctx.lineTo(0, -55);
-        ctx.lineTo(12, -45);
-        ctx.quadraticCurveTo(16, -30, 18, 0);
-        ctx.closePath();
-        ctx.fill();
-
-        // Tattered bottom edges
-        ctx.fillStyle = '#0a0510';
-        for (let i = 0; i < 6; i++) {
-            const x = -16 + i * 6;
-            const tatterLength = 6 + Math.sin(t * 2.5 + i) * 3;
-            ctx.fillRect(x, -2 + Math.sin(t * 3 + i * 0.5) * 2, 4, tatterLength);
+        if (this.isDead) {
+            animName = 'death';
+            const progress = Math.min(1, this.deathTimer / 0.8);
+            frame = Math.min(5, Math.floor(progress * 6));
+        } else if (this.hitStunTime > 0 || this.state === 'hurt') {
+            animName = 'hurt';
+            frame = 0;
+        } else if (this.isAttacking || this.state === 'attack') {
+            animName = 'attack';
+            frame = Math.floor(this.stateTime * 12) % 6;
+        } else if (this.state === 'chase' || Math.abs(this.vx) > 10) {
+            animName = 'run';
+            frame = Math.floor(this.animTime * 12) % 6;
+        } else {
+            animName = 'idle';
+            frame = Math.floor(this.animTime * 8) % 6;
         }
 
-        // Robe inner shadow
-        ctx.fillStyle = '#150820';
-        ctx.beginPath();
-        ctx.moveTo(-10, 0);
-        ctx.quadraticCurveTo(-8, -25, -6, -40);
-        ctx.lineTo(6, -40);
-        ctx.quadraticCurveTo(8, -25, 10, 0);
-        ctx.closePath();
-        ctx.fill();
-
-        // Hood
-        ctx.fillStyle = robeColor;
-        ctx.beginPath();
-        ctx.arc(0, -62, 14, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Hood shadow inside
-        ctx.fillStyle = '#0a0510';
-        ctx.beginPath();
-        ctx.ellipse(0, -60, 10, 8, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Glowing eyes
-        const eyeColor = aggro ? '#ff4444' : '#663333';
-        const eyeGlow = aggro ? 12 : 4;
-
-        if (aggro) {
-            ctx.shadowColor = '#ff3333';
-            ctx.shadowBlur = eyeGlow;
+        const sheet = ratImageCache[animName];
+        if (!sheet || !sheet.loaded) {
+            // Crisp placeholder while loading
+            ctx.fillStyle = this.isAggro ? '#5a1010' : '#302020';
+            ctx.fillRect(-this.width / 2, -this.height, this.width, this.height);
+            return;
         }
 
-        ctx.fillStyle = eyeColor;
-        ctx.beginPath();
-        ctx.arc(-4, -63, 3, 0, Math.PI * 2);
-        ctx.arc(4, -63, 3, 0, Math.PI * 2);
-        ctx.fill();
+        const cellW = 32;
+        const cellH = 32;
+        const scale = 2.0;
+        const anchorX = 16;
+        const anchorY = 32;
 
-        ctx.shadowBlur = 0;
+        const sx = frame * cellW;
+        const sy = 0;
+        const dx = -anchorX * scale;
+        const dy = -anchorY * scale;
+        const dw = cellW * scale;
+        const dh = cellH * scale;
 
-        // Ethereal glow when aggro
-        if (aggro) {
-            ctx.fillStyle = `rgba(100, 50, 120, ${0.1 + Math.sin(t * 4) * 0.05})`;
-            ctx.beginPath();
-            ctx.ellipse(0, -30, 22 + Math.sin(t * 3) * 2, 30, 0, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Ghostly weapon
-        ctx.fillStyle = aggro ? '#4a4060' : '#3a3050';
-        ctx.save();
-        ctx.translate(20, -42);
-        ctx.rotate(0.3 + Math.sin(t * 2) * 0.12 + this.getWeaponSwing());
-
-        // Blade
-        ctx.beginPath();
-        ctx.moveTo(-2, 0);
-        ctx.lineTo(2, 0);
-        ctx.lineTo(1, 35);
-        ctx.lineTo(0, 38);
-        ctx.lineTo(-1, 35);
-        ctx.closePath();
-        ctx.fill();
-
-        // Blade edge glow when aggro
-        if (aggro) {
-            ctx.strokeStyle = 'rgba(150, 100, 180, 0.5)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        }
-
-        // Handle
-        ctx.fillStyle = '#2a1a30';
-        ctx.fillRect(-3, -6, 6, 8);
-
-        ctx.restore();
-
-        // Wispy movement particles when chasing
-        if (aggro && this.state === 'chase') {
-            ctx.globalAlpha = 0.3;
-            for (let i = 0; i < 3; i++) {
-                const px = -10 + Math.sin(t * 5 + i * 2) * 15;
-                const py = -20 + Math.cos(t * 4 + i * 1.5) * 20 - i * 10;
-                const psize = 8 - i * 2;
-
-                ctx.fillStyle = '#2a1540';
-                ctx.beginPath();
-                ctx.ellipse(px, py, psize, psize * 0.6, 0, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.globalAlpha = 1;
-        }
+        ctx.drawImage(sheet.image, sx, sy, cellW, cellH, dx, dy, dw, dh);
     }
 }

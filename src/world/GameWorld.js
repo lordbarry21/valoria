@@ -29,6 +29,12 @@ export class GameWorld {
 
         // Background layers for parallax
         this.bgLayers = [];
+
+        // Castle background sprite
+        this.bgImage = new Image();
+        this.bgImage.src = 'Assets/Assets/PNG/Castle-Background.png';
+        this.bgLoaded = false;
+        this.bgImage.onload = () => { this.bgLoaded = true; };
     }
 
     clampX(x, halfWidth = 0) {
@@ -249,6 +255,20 @@ export class GameWorld {
         gradient.addColorStop(1, '#0a0808');     // Horizon
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, this.arenaWidth, this.arenaHeight);
+
+        // Castle background art
+        if (this.bgLoaded && this.bgImage) {
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            const bgW = 426 * 2.2;
+            const bgH = 190 * 2.2;
+            const bgY = this.floorY - bgH + 30;
+            const tiles = Math.ceil(this.arenaWidth / bgW) + 1;
+            for (let i = 0; i < tiles; i++) {
+                ctx.drawImage(this.bgImage, i * bgW, bgY, bgW, bgH);
+            }
+            ctx.restore();
+        }
 
         // Subtle atmospheric haze
         const haze = ctx.createLinearGradient(0, 0, 0, this.arenaHeight * 0.7);

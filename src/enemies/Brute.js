@@ -1,17 +1,40 @@
 /**
- * VALORIA - Brute Enemy
- * Slow but powerful tank with imposing visuals
+ * VALORIA - Brute / Dread Gargoyle Enemy
+ * Heavy aerial tank using the animated Dark Fantasy Bat with VFX pack.
  */
 
 import { Enemy } from './Enemy.js';
+
+const BAT_SHEETS = {
+    idle: { file: 'DarkFantasyEnemies_FREE/DarkFantasyEnemies_FREE/Bat/Bat with VFX/Bat-IdleFly.png', frames: 9, fps: 10 },
+    run: { file: 'DarkFantasyEnemies_FREE/DarkFantasyEnemies_FREE/Bat/Bat with VFX/Bat-Run.png', frames: 8, fps: 12 },
+    attack: { file: 'DarkFantasyEnemies_FREE/DarkFantasyEnemies_FREE/Bat/Bat with VFX/Bat-Attack1.png', frames: 8, fps: 10 },
+    attack2: { file: 'DarkFantasyEnemies_FREE/DarkFantasyEnemies_FREE/Bat/Bat with VFX/Bat-Attack2.png', frames: 11, fps: 12 },
+    hurt: { file: 'DarkFantasyEnemies_FREE/DarkFantasyEnemies_FREE/Bat/Bat with VFX/Bat-Hurt.png', frames: 5, fps: 10 },
+    death: { file: 'DarkFantasyEnemies_FREE/DarkFantasyEnemies_FREE/Bat/Bat with VFX/Bat-Die.png', frames: 12, fps: 10 },
+};
+
+const batImageCache = {};
+let batPreloadStarted = false;
+
+function preloadBatSprites() {
+    if (batPreloadStarted) return;
+    batPreloadStarted = true;
+    for (const [k, v] of Object.entries(BAT_SHEETS)) {
+        const img = new Image();
+        img.src = v.file;
+        batImageCache[k] = { image: img, loaded: false, frames: v.frames, fps: v.fps };
+        img.onload = () => { batImageCache[k].loaded = true; };
+    }
+}
 
 export class Brute extends Enemy {
     constructor() {
         super();
 
-        this.name = 'Brute';
+        this.name = 'Dread Gargoyle';
         this.width = 60;
-        this.height = 90;
+        this.height = 85;
 
         // Health - much higher
         this.maxHealth = 120;
@@ -23,151 +46,72 @@ export class Brute extends Enemy {
         this.attackCooldownMax = 2.0;
 
         // AI - slower
-        this.aggroRange = 200;
-        this.moveSpeed = 60;
+        this.aggroRange = 220;
+        this.moveSpeed = 75;
 
         // Resistance
         this.damageTakenMultiplier = 0.7;
         this.knockbackResistance = 0.3;
         this.hitStunMultiplier = 0.5;
+
+        preloadBatSprites();
     }
 
     drawBody(ctx) {
-        const t = this.animTime;
-        const aggro = this.isAggro;
-        const hurtFlash = this.hitStunTime > 0.1;
+        ctx.imageSmoothingEnabled = false;
 
-        // Heavy shadow
+        const t = this.animTime;
+        // Floating hover motion
+        const hoverY = this.isDead ? 0 : Math.sin(t * 3.5) * 6 - 8;
+
+        // Dark ground shadow that scales with hover
+        const shadowScale = this.isDead ? 0.5 : 1 + Math.sin(t * 3.5) * 0.1;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.beginPath();
-        ctx.ellipse(0, 0, 28, 8, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 2, 28 * shadowScale, 8 * shadowScale, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Leg armor
-        ctx.fillStyle = hurtFlash ? '#4a4040' : '#252020';
-        ctx.fillRect(-22, -28, 16, 28);
-        ctx.fillRect(6, -28, 16, 28);
+        let animName = 'idle';
+        let frame = 0;
 
-        // Boots
-        ctx.fillStyle = hurtFlash ? '#3a3030' : '#1a1515';
-        ctx.fillRect(-24, -5, 20, 8);
-        ctx.fillRect(4, -5, 20, 8);
-
-        // Armored body
-        const bodyGradient = ctx.createLinearGradient(-28, -80, 28, -80);
-        bodyGradient.addColorStop(0, hurtFlash ? '#3a3030' : '#2a2525');
-        bodyGradient.addColorStop(0.3, hurtFlash ? '#4a4040' : '#353030');
-        bodyGradient.addColorStop(0.7, hurtFlash ? '#4a4040' : '#353030');
-        bodyGradient.addColorStop(1, hurtFlash ? '#3a3030' : '#2a2525');
-        ctx.fillStyle = bodyGradient;
-        ctx.fillRect(-28, -82, 56, 60);
-
-        // Armor plates
-        ctx.fillStyle = hurtFlash ? '#5a5050' : '#454045';
-        ctx.fillRect(-26, -78, 52, 14);
-        ctx.fillRect(-24, -58, 48, 12);
-
-        // Chest emblem
-        ctx.fillStyle = aggro ? '#8b2020' : '#4a2020';
-        ctx.fillRect(-8, -72, 16, 20);
-        ctx.fillStyle = hurtFlash ? '#6a3030' : '#3a1515';
-        ctx.fillRect(-6, -70, 12, 16);
-
-        // Shoulder guards - massive
-        ctx.fillStyle = hurtFlash ? '#4a4040' : '#353030';
-        ctx.fillRect(-38, -82, 16, 22);
-        ctx.fillRect(22, -82, 16, 22);
-
-        // Shoulder spikes
-        ctx.fillStyle = hurtFlash ? '#5a5050' : '#454045';
-        ctx.beginPath();
-        ctx.moveTo(-38, -82);
-        ctx.lineTo(-42, -92);
-        ctx.lineTo(-32, -82);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(38, -82);
-        ctx.lineTo(42, -92);
-        ctx.lineTo(32, -82);
-        ctx.closePath();
-        ctx.fill();
-
-        // Head with helmet
-        ctx.fillStyle = hurtFlash ? '#4a4040' : '#2a2525';
-        ctx.beginPath();
-        ctx.arc(0, -95, 18, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Helmet top ridge
-        ctx.fillStyle = hurtFlash ? '#5a5050' : '#3a3535';
-        ctx.beginPath();
-        ctx.arc(0, -98, 14, Math.PI, 0);
-        ctx.fill();
-
-        // Visor slit
-        ctx.fillStyle = '#0a0808';
-        ctx.fillRect(-14, -98, 28, 8);
-
-        // Glowing eyes through visor
-        const eyeColor = aggro ? '#ff6600' : '#663300';
-        const eyeGlow = aggro ? 10 : 0;
-
-        if (eyeGlow > 0) {
-            ctx.shadowColor = '#ff6600';
-            ctx.shadowBlur = eyeGlow;
+        if (this.isDead) {
+            animName = 'death';
+            const progress = Math.min(1, this.deathTimer / 1.1);
+            frame = Math.min(11, Math.floor(progress * 12));
+        } else if (this.hitStunTime > 0 || this.state === 'hurt') {
+            animName = 'hurt';
+            frame = Math.min(4, Math.floor(this.stateTime * 10));
+        } else if (this.isAttacking || this.state === 'attack') {
+            animName = 'attack';
+            frame = Math.floor(this.stateTime * 10) % 8;
+        } else if (this.state === 'chase' || Math.abs(this.vx) > 10) {
+            animName = 'run';
+            frame = Math.floor(this.animTime * 12) % 8;
+        } else {
+            animName = 'idle';
+            frame = Math.floor(this.animTime * 10) % 9;
         }
 
-        ctx.fillStyle = eyeColor;
-        ctx.beginPath();
-        ctx.arc(-5, -94, 3, 0, Math.PI * 2);
-        ctx.arc(5, -94, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.shadowBlur = 0;
-
-        // Weapon (massive axe)
-        ctx.fillStyle = hurtFlash ? '#4a4040' : '#353035';
-        ctx.save();
-        ctx.translate(32, -58);
-        ctx.rotate(0.2 + Math.sin(t * 1.5) * 0.05 + this.getWeaponSwing());
-
-        // Handle
-        ctx.fillRect(-4, 0, 8, 55);
-
-        // Axe head
-        ctx.fillStyle = hurtFlash ? '#5a5050' : '#454050';
-        ctx.beginPath();
-        ctx.moveTo(-4, 5);
-        ctx.lineTo(-28, 18);
-        ctx.lineTo(-28, 42);
-        ctx.lineTo(-4, 35);
-        ctx.closePath();
-        ctx.fill();
-
-        // Axe blade edge
-        ctx.fillStyle = aggro ? '#6a6070' : '#5a5560';
-        ctx.beginPath();
-        ctx.moveTo(-28, 18);
-        ctx.lineTo(-32, 30);
-        ctx.lineTo(-28, 42);
-        ctx.stroke();
-        ctx.fill();
-
-        // Metal bindings
-        ctx.fillStyle = '#3a3540';
-        ctx.fillRect(-4, 4, 8, 6);
-        ctx.fillRect(-4, 48, 8, 6);
-
-        ctx.restore();
-
-        // Heavy footstep dust when moving
-        if (this.state === 'chase') {
-            ctx.fillStyle = 'rgba(40, 35, 30, 0.3)';
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 30, 10, 0, 0, Math.PI * 2);
-            ctx.fill();
+        const sheet = batImageCache[animName];
+        if (!sheet || !sheet.loaded) {
+            ctx.fillStyle = '#3a2030';
+            ctx.fillRect(-this.width / 2, -this.height, this.width, this.height);
+            return;
         }
+
+        const cellW = 64;
+        const cellH = 64;
+        const scale = 2.2;
+        const anchorX = 32;
+        const anchorY = 46;
+
+        const sx = frame * cellW;
+        const sy = 0;
+        const dx = -anchorX * scale;
+        const dy = (-anchorY * scale) + hoverY;
+        const dw = cellW * scale;
+        const dh = cellH * scale;
+
+        ctx.drawImage(sheet.image, sx, sy, cellW, cellH, dx, dy, dw, dh);
     }
 }
