@@ -48,6 +48,10 @@ export class Enemy {
         this.hitStopTime = 0;
         this.knockbackVelX = 0;
 
+        this.climbSpeed = 95;
+        this.currentLadder = null;
+        this.canClimbLadders = true;
+
         this.animTime = 0;
     }
 
@@ -65,6 +69,7 @@ export class Enemy {
         this.hitStopTime = 0;
         this.knockbackVelX = 0;
         this.vx = 0;
+        this.currentLadder = null;
     }
 
     update(dt) {
@@ -110,12 +115,105 @@ export class Enemy {
         this.stateTime = 0;
     }
 
+    findTargetLadder() {
+        if (!this.canClimbLadders || !gameWorld?.ladders || gameWorld.ladders.length === 0 || !player) return null;
+
+        const playerY = player.y;
+        const enemyY = this.y;
+        const verticalDiff = playerY - enemyY;
+
+        // If on roughly the same level (within 35px), no ladder needed
+        if (Math.abs(verticalDiff) <= 35) return null;
+
+        if (verticalDiff < 0) {
+            // Player is HIGHER up than enemy
+            // Check if player is on an elevated platform
+            const targetPlatform = gameWorld.platforms?.find(p =>
+                p.y < (gameWorld.floorY || 500) &&
+                player.x >= p.x - 30 &&
+                player.x <= p.x + p.width + 30 &&
+                Math.abs(player.y - p.y) < 30
+            );
+
+            if (targetPlatform) {
+                const ladder = gameWorld.ladders.find(l =>
+                    Math.abs(l.topY - targetPlatform.y) < 15 &&
+                    l.x >= targetPlatform.x - 10 &&
+                    l.x <= targetPlatform.x + targetPlatform.width + 10
+                );
+                if (ladder) return ladder;
+            }
+
+            // Find closest ladder to player's X
+            let closest = gameWorld.ladders[0];
+            let minDist = Math.abs(closest.x - player.x);
+            for (let i = 1; i < gameWorld.ladders.length; i++) {
+                const dist = Math.abs(gameWorld.ladders[i].x - player.x);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = gameWorld.ladders[i];
+                }
+            }
+            return closest;
+        } else {
+            // Player is LOWER down than enemy (enemy on platform)
+            const ladder = gameWorld.ladders.find(l =>
+                Math.abs(l.topY - enemyY) < 20 &&
+                Math.abs(l.x - this.x) < 250
+            );
+            return ladder || gameWorld.ladders[0];
+        }
+    }
+
     updateAI(dt) {
+        if (!player || player.isDead) {
+            this.vx = 0;
+            this.setState('idle');
+            return;
+        }
+
         const distToPlayer = Math.abs(this.x - player.x);
+        const verticalDist = Math.abs(this.y - player.y);
         const dirToPlayer = player.x > this.x ? 1 : -1;
 
-        if (this.state !== 'attack') this.facing = dirToPlayer;
-        this.isAggro = !player.isDead && distToPlayer < this.aggroRange;
+        if (this.state !== 'attack' && this.state !== 'climb') {
+            this.facing = dirToPlayer;
+        }
+        this.isAggro = this.aggroRange >= 9999 || distToPlayer < this.aggroRange;
+
+        // Climbing state handling
+        if (this.state === 'climb') {
+            const ladder = this.currentLadder || this.findTargetLadder();
+            if (!ladder) {
+                this.setState('chase');
+                return;
+            }
+            this.x = ladder.x;
+            this.vx = 0;
+
+            const targetY = player.y;
+            if (targetY < this.y - 10) {
+                this.y -= this.climbSpeed * dt;
+                if (this.y <= ladder.topY) {
+                    this.y = ladder.topY;
+                    this.currentLadder = null;
+                    this.setState('chase');
+                }
+            } else if (targetY > this.y + 10) {
+                this.y += this.climbSpeed * dt;
+                if (this.y >= ladder.bottomY) {
+                    this.y = gameWorld.floorY || 500;
+                    this.currentLadder = null;
+                    this.setState('chase');
+                }
+            } else {
+                this.currentLadder = null;
+                this.setState('chase');
+            }
+            return;
+        }
+
+        const neededLadder = this.isAggro ? this.findTargetLadder() : null;
 
         switch (this.state) {
             case 'idle':
@@ -126,7 +224,20 @@ export class Enemy {
                 if (!this.isAggro) {
                     this.vx = 0;
                     this.setState('idle');
-                } else if (distToPlayer > this.attackRange) {
+                } else if (neededLadder) {
+                    const distToLadder = Math.abs(this.x - neededLadder.x);
+                    const dirToLadder = neededLadder.x > this.x ? 1 : -1;
+                    if (distToLadder > 12) {
+                        this.vx = dirToLadder * this.moveSpeed;
+                        this.facing = dirToLadder;
+                        this.x += this.vx * dt;
+                    } else {
+                        this.x = neededLadder.x;
+                        this.vx = 0;
+                        this.currentLadder = neededLadder;
+                        this.setState('climb');
+                    }
+                } else if (distToPlayer > this.attackRange || verticalDist > 35) {
                     this.vx = dirToPlayer * this.moveSpeed;
                     this.x += this.vx * dt;
                 } else {
@@ -148,6 +259,20 @@ export class Enemy {
             case 'cooldown':
                 if (this.attackCooldown <= 0) this.setState('idle');
                 break;
+        }
+
+        // Maintain platform Y level or floor Y level when not climbing
+        if (this.state !== 'climb') {
+            let groundY = gameWorld?.floorY || 500;
+            if (gameWorld?.platforms) {
+                for (const plat of gameWorld.platforms) {
+                    if (plat.y < groundY && this.x >= plat.x - 10 && this.x <= plat.x + plat.width + 10 && Math.abs(this.y - plat.y) < 25) {
+                        groundY = plat.y;
+                        break;
+                    }
+                }
+            }
+            this.y = groundY;
         }
     }
 

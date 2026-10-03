@@ -44,7 +44,7 @@ export class FlyingEyeEnemy extends Enemy {
         this.attackRange = 65;
         this.attackCooldownMax = 1.3;
 
-        this.aggroRange = 650;
+        this.aggroRange = 99999;
         this.moveSpeed = 125;
 
         this.attackVariant = 'attack1';

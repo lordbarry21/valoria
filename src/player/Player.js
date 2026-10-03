@@ -755,17 +755,18 @@ export class Player {
         this.rage = 0;
         this.beginSkill({
             id: 'dawn_judgment',
-            damage: 110 * this.character.stats.damageMultiplier,
-            startup: 0.2, active: 0.8, recovery: 0.35,
-            hitbox: { x: 80, y: -40, width: 450, height: 120 },
-            knockback: 600, hitStun: 0.9, hitStop: 90, moveForce: 0,
+            damage: 130 * this.character.stats.damageMultiplier,
+            startup: 0.2, active: 0.9, recovery: 0.35,
+            hitbox: { x: 80, y: -50, width: 520, height: 140 },
+            knockback: 650, hitStun: 1.0, hitStop: 100, moveForce: 0,
             swingSound: 'sword_swing_heavy', impactSound: 'sword_impact_heavy', screenShake: 'heavy', rageGain: 0
         });
-        this.vy = -260; // Leaps gracefully into the air
-        audioManager.playSFX('valoria_rage_start');
+        this.vy = -280; // Ascends gracefully into the heavens
+        audioManager.playSFX('holy_judgment');
         vfxManager.createDawnOfJudgment(this);
         camera.shakeHeavy();
-        this.heal(25);
+        camera.impactZoom(0.16, 0.4);
+        this.heal(30);
         this.notify('DAWN OF JUDGMENT!', '#ffe066');
     }
 

@@ -3,7 +3,7 @@
  * Handles multi-stage enemy spawning, wave progression, updates, and rendering
  */
 
-import { player, gameWorld, victoryAchieved } from '../main.js';
+import { player, gameWorld, victoryAchieved, audioManager, vfxManager, camera, GAME_CONFIG } from '../main.js';
 import { Enemy } from './Enemy.js';
 import { WraithSoldier } from './WraithSoldier.js';
 import { SkeletonEnemy } from './SkeletonEnemy.js';
@@ -42,6 +42,8 @@ export class EnemyManager {
         this.bannerTimer = 0;
         this.bannerText = '';
         this.stage = 1;
+        this.portalActive = false;
+        this.portal = null;
     }
 
     init() {
@@ -51,6 +53,8 @@ export class EnemyManager {
         this.bannerTimer = 0;
         this.bannerText = '';
         this.stage = 1;
+        this.portalActive = false;
+        this.portal = null;
         if (gameWorld?.bgImage) {
             gameWorld.bgImage.src = 'Assets/Assets/PNG/Castle-Background.png';
         }
@@ -112,8 +116,53 @@ export class EnemyManager {
         this.bannerTimer = WAVE_BANNER_DURATION;
     }
 
+    spawnPortal() {
+        this.portalActive = true;
+        this.portal = {
+            x: 2360,
+            y: gameWorld?.floorY || 500,
+            radius: 48,
+            animTime: 0
+        };
+        this.showBanner('FROST PORTAL OPENED! FOLLOW THE ARROW');
+        audioManager.playSFX('skill_ready');
+    }
+
+    enterPortal() {
+        this.portalActive = false;
+        this.portal = null;
+        this.stage = 2;
+
+        if (gameWorld?.bgImage) {
+            gameWorld.bgImage.src = 'Assets/Assets/PNG/Ice-Background.png';
+        }
+
+        audioManager.playSFX('sword_swing_heavy');
+        vfxManager.createImpact(player.x, player.y - 40, 'sword_impact_heavy');
+        camera.shakeHeavy();
+
+        player.x = 240;
+        player.y = gameWorld?.floorY || 500;
+        player.vx = 0;
+        player.vy = 0;
+        camera.follow(player, 0);
+        camera.snapToTarget();
+
+        this.intermissionTimer = 1.0;
+        this.spawnWave();
+    }
+
     update(dt) {
         if (this.bannerTimer > 0) this.bannerTimer -= dt;
+
+        if (this.portalActive && this.portal) {
+            this.portal.animTime += dt;
+            const dist = Math.hypot(player.x - this.portal.x, player.y - this.portal.y);
+            if (dist < 60) {
+                this.enterPortal();
+                return;
+            }
+        }
 
         for (const enemy of this.enemies) {
             enemy.update(dt);
@@ -131,6 +180,16 @@ export class EnemyManager {
             victoryAchieved();
             return;
         }
+
+        // When Stage 1 (Wave 3) is cleared, spawn the Frost Portal to Ice Map!
+        if (this.waveNumber === 3 && this.stage === 1) {
+            if (!this.portalActive) {
+                this.spawnPortal();
+            }
+            return;
+        }
+
+        if (this.portalActive) return;
 
         if (this.intermissionTimer <= 0) {
             this.intermissionTimer = WAVE_INTERMISSION;
@@ -163,10 +222,153 @@ export class EnemyManager {
     }
 
     render(ctx) {
+        if (this.portalActive && this.portal) {
+            this.renderPortal(ctx);
+        }
+
         const sortedByDepth = [...this.enemies].sort((a, b) => a.y - b.y);
         for (const enemy of sortedByDepth) {
             enemy.render(ctx);
         }
+
+        if (this.portalActive && this.portal) {
+            this.renderPortalIndicator(ctx);
+        }
+    }
+
+    renderPortal(ctx) {
+        const p = this.portal;
+        const t = p.animTime;
+        const centerX = p.x;
+        const centerY = p.y - 48;
+
+        ctx.save();
+
+        // Ground frost aura
+        const groundGrad = ctx.createRadialGradient(centerX, p.y, 0, centerX, p.y, 90);
+        groundGrad.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+        groundGrad.addColorStop(0.6, 'rgba(2, 132, 199, 0.15)');
+        groundGrad.addColorStop(1, 'rgba(2, 132, 199, 0)');
+        ctx.fillStyle = groundGrad;
+        ctx.beginPath();
+        ctx.ellipse(centerX, p.y, 75, 18, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Outer rotating runic ring
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(t * 1.2);
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([12, 8, 4, 8]);
+        ctx.beginPath();
+        ctx.arc(0, 0, 44 + Math.sin(t * 3) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Inner counter-rotating ring
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(-t * 1.8);
+        ctx.strokeStyle = 'rgba(224, 242, 254, 0.95)';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.arc(0, 0, 32, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Swirling portal vortex fill
+        const vortexGrad = ctx.createRadialGradient(centerX, centerY, 5, centerX, centerY, 42);
+        vortexGrad.addColorStop(0, '#ffffff');
+        vortexGrad.addColorStop(0.3, '#7dd3fc');
+        vortexGrad.addColorStop(0.7, '#0284c7');
+        vortexGrad.addColorStop(1, 'rgba(3, 105, 161, 0.2)');
+        ctx.fillStyle = vortexGrad;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 38, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Floating frost crystals / motes
+        for (let i = 0; i < 8; i++) {
+            const angle = t * 2 + (i * Math.PI / 4);
+            const r = 24 + Math.sin(t * 3 + i) * 14;
+            const px = centerX + Math.cos(angle) * r;
+            const py = centerY + Math.sin(angle) * (r * 0.8) - 10;
+            ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#38bdf8';
+            ctx.shadowColor = '#38bdf8';
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+
+        // Floating pointer arrow right above portal
+        const arrowY = centerY - 65 + Math.sin(t * 5) * 8;
+        ctx.font = 'bold 13px "Cinzel", serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffdd44';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 6;
+        ctx.fillText('▼ ENTER PORTAL ▼', centerX, arrowY);
+        ctx.font = '10px "Cinzel", serif';
+        ctx.fillStyle = '#7dd3fc';
+        ctx.fillText('FROZEN CITADEL', centerX, arrowY - 14);
+
+        ctx.restore();
+    }
+
+    renderPortalIndicator(ctx) {
+        if (!this.portal || !player) return;
+
+        // Calculate screen-space X of portal
+        const halfWidth = GAME_CONFIG.CANVAS_WIDTH / 2;
+        const screenX = this.portal.x - camera.x + halfWidth;
+
+        // If portal is currently on-screen, no need for edge indicator
+        if (screenX >= 80 && screenX <= GAME_CONFIG.CANVAS_WIDTH - 80) return;
+
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset to screen coordinates
+
+        const isRight = screenX > GAME_CONFIG.CANVAS_WIDTH - 80;
+        const edgeX = isRight ? GAME_CONFIG.CANVAS_WIDTH - 30 : 30;
+        const edgeY = 220;
+        const distMeters = Math.max(0, Math.round(Math.abs(this.portal.x - player.x)));
+
+        const pulse = 1 + Math.sin(this.portal.animTime * 6) * 0.08;
+
+        ctx.translate(edgeX, edgeY);
+        ctx.scale(pulse, pulse);
+
+        // Indicator badge
+        ctx.fillStyle = 'rgba(10, 20, 30, 0.9)';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#0284c7';
+        ctx.shadowBlur = 10;
+
+        const boxW = 145;
+        const boxH = 34;
+        const boxX = isRight ? -boxW : 0;
+        const boxY = -boxH / 2;
+
+        ctx.beginPath();
+        ctx.roundRect(boxX, boxY, boxW, boxH, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.font = 'bold 11px "Cinzel", sans-serif';
+        ctx.fillStyle = '#ffd700';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const arrowSymbol = isRight ? '➔' : '⬅';
+        ctx.fillText(`${arrowSymbol} ICE PORTAL (${distMeters}m)`, boxX + boxW / 2, 0);
+
+        ctx.restore();
     }
 
     getEnemyCount() {

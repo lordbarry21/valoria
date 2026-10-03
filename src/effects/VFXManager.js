@@ -270,57 +270,260 @@ export class VFXManager {
     }
 
     renderHolySwords(ctx, effect, progress) {
-        const { x, y } = effect;
-        ctx.save();
-
+        const { x, y, facing = 1 } = effect;
         const alpha = Math.max(0, 1 - progress);
         const swords = effect.swords || [];
 
+        ctx.save();
+
+        // 1. Radiant Valkyrie Wings & Halo around Lady Sylvia during initial ascent
+        if (progress < 0.65) {
+            const wingAlpha = Math.sin((progress / 0.65) * Math.PI);
+            ctx.save();
+            ctx.translate(x, y - 55);
+
+            // Radiant Halo
+            ctx.strokeStyle = `rgba(255, 235, 120, ${wingAlpha * 0.9})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(0, -28, 22, 7, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Halo star rays
+            for (let r = 0; r < 8; r++) {
+                const ang = (r * Math.PI) / 4 + progress * 2.5;
+                ctx.strokeStyle = `rgba(255, 255, 200, ${wingAlpha * 0.75})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(ang) * 22, -28 + Math.sin(ang) * 7);
+                ctx.lineTo(Math.cos(ang) * 32, -28 + Math.sin(ang) * 11);
+                ctx.stroke();
+            }
+
+            // Blazing Angelic Wings
+            const wingSpan = 75 * wingAlpha;
+            const wingColor = `rgba(255, 225, 100, ${wingAlpha * 0.85})`;
+            const wingCore = `rgba(255, 255, 255, ${wingAlpha * 0.95})`;
+
+            [-1, 1].forEach(side => {
+                ctx.save();
+                ctx.scale(side, 1);
+
+                // Outer holy wing arc
+                ctx.fillStyle = wingColor;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(wingSpan * 0.5, -45, wingSpan, -35);
+                ctx.quadraticCurveTo(wingSpan * 0.7, -10, wingSpan * 0.85, 15);
+                ctx.quadraticCurveTo(wingSpan * 0.4, 0, 0, 0);
+                ctx.fill();
+
+                // Inner wing feathers
+                ctx.fillStyle = wingCore;
+                ctx.beginPath();
+                ctx.moveTo(0, -5);
+                ctx.quadraticCurveTo(wingSpan * 0.4, -35, wingSpan * 0.75, -28);
+                ctx.quadraticCurveTo(wingSpan * 0.5, -5, 0, -5);
+                ctx.fill();
+
+                ctx.restore();
+            });
+
+            ctx.restore();
+        }
+
+        // 2. Grand Sacred Magic Circle on Ground
+        const circleCenterX = x + facing * 200;
+        const circleRadius = 240;
+        const circleAlpha = Math.sin(progress * Math.PI) * 0.85;
+
+        if (circleAlpha > 0) {
+            ctx.save();
+            ctx.translate(circleCenterX, y);
+
+            // Ground holy glow
+            const groundGlow = ctx.createRadialGradient(0, 0, 10, 0, 0, circleRadius);
+            groundGlow.addColorStop(0, `rgba(255, 235, 130, ${circleAlpha * 0.45})`);
+            groundGlow.addColorStop(0.5, `rgba(245, 158, 11, ${circleAlpha * 0.2})`);
+            groundGlow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+            ctx.fillStyle = groundGlow;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, circleRadius, 55, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Outer runic circle
+            ctx.save();
+            ctx.rotate(progress * 2.2);
+            ctx.strokeStyle = `rgba(255, 215, 0, ${circleAlpha * 0.8})`;
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([14, 8, 4, 8]);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, circleRadius * 0.9, 45, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            // Inner counter-rotating ring with 8-pointed solar star
+            ctx.save();
+            ctx.rotate(-progress * 2.8);
+            ctx.strokeStyle = `rgba(255, 245, 180, ${circleAlpha * 0.9})`;
+            ctx.lineWidth = 1.8;
+            ctx.setLineDash([8, 6]);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, circleRadius * 0.6, 30, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Solar star rays
+            for (let k = 0; k < 8; k++) {
+                const ang = (k * Math.PI) / 4;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(ang) * (circleRadius * 0.25), Math.sin(ang) * 12);
+                ctx.lineTo(Math.cos(ang) * (circleRadius * 0.85), Math.sin(ang) * 42);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        // 3. Celestial Swords Bombardment & Impact Pillars
         for (let i = 0; i < swords.length; i++) {
             const s = swords[i];
-            const swordProg = Math.max(0, Math.min(1, (progress - s.delay) / 0.35));
+            const swordProg = Math.max(0, Math.min(1, (progress - s.delay) / 0.32));
             if (swordProg <= 0) continue;
 
             const targetY = y;
-            const currentY = (targetY - 450) + swordProg * 450;
             const sx = x + s.offsetX;
+            const scale = s.size || 1.2;
 
             if (swordProg < 1) {
-                // Falling sword beam
+                // Falling blade: from (targetY - 520) down to targetY
+                const currentY = (targetY - 520) + swordProg * 520;
+
                 ctx.save();
                 ctx.translate(sx, currentY);
-                ctx.strokeStyle = `rgba(255, 240, 150, ${alpha})`;
-                ctx.lineWidth = 6;
+
+                // Streaking light trail above the blade
+                const trailGrad = ctx.createLinearGradient(0, -90 * scale, 0, 20 * scale);
+                trailGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                trailGrad.addColorStop(0.6, `rgba(254, 240, 138, ${alpha * 0.6})`);
+                trailGrad.addColorStop(1, `rgba(255, 255, 255, ${alpha * 0.95})`);
+                ctx.fillStyle = trailGrad;
+                ctx.fillRect(-6 * scale, -90 * scale, 12 * scale, 110 * scale);
+
+                // Blazing Sword Blade
+                ctx.shadowColor = '#f59e0b';
+                ctx.shadowBlur = 15;
+
+                // Outer golden edge
+                ctx.fillStyle = '#fde047';
                 ctx.beginPath();
-                ctx.moveTo(0, -60);
-                ctx.lineTo(0, 30);
+                ctx.moveTo(0, 42 * scale);
+                ctx.lineTo(-8 * scale, -45 * scale);
+                ctx.lineTo(8 * scale, -45 * scale);
+                ctx.closePath();
+                ctx.fill();
+
+                // Core brilliant white blade
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(0, 40 * scale);
+                ctx.lineTo(-4 * scale, -43 * scale);
+                ctx.lineTo(4 * scale, -43 * scale);
+                ctx.closePath();
+                ctx.fill();
+
+                // Angelic Winged Crossguard
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.moveTo(-22 * scale, -40 * scale);
+                ctx.quadraticCurveTo(-10 * scale, -48 * scale, 0, -44 * scale);
+                ctx.quadraticCurveTo(10 * scale, -48 * scale, 22 * scale, -40 * scale);
+                ctx.lineTo(16 * scale, -37 * scale);
+                ctx.lineTo(-16 * scale, -37 * scale);
+                ctx.closePath();
+                ctx.fill();
+
+                // Quillon wings tip highlight
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(-20 * scale, -41 * scale, 2.5 * scale, 0, Math.PI * 2);
+                ctx.arc(20 * scale, -41 * scale, 2.5 * scale, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Hilt & Pommel
+                ctx.strokeStyle = '#c9a227';
+                ctx.lineWidth = 3 * scale;
+                ctx.beginPath();
+                ctx.moveTo(0, -45 * scale);
+                ctx.lineTo(0, -62 * scale);
                 ctx.stroke();
 
-                // Crossguard
-                ctx.lineWidth = 3;
+                // Radiant Star Pommel
+                ctx.fillStyle = '#ffffff';
                 ctx.beginPath();
-                ctx.moveTo(-16, -40);
-                ctx.lineTo(16, -40);
-                ctx.stroke();
+                ctx.arc(0, -64 * scale, 4 * scale, 0, Math.PI * 2);
+                ctx.fill();
+
                 ctx.restore();
             } else {
-                // Ground impact pillar
-                const impactAge = progress - (s.delay + 0.35);
-                const pillarAlpha = Math.max(0, 1 - impactAge * 2.5);
+                // Sword impaled in ground: Cataclysmic Light Column & Shockwave
+                const impactAge = progress - (s.delay + 0.32);
+                const pillarAlpha = Math.max(0, 1 - impactAge * 2.2);
 
-                const pillarGrad = ctx.createLinearGradient(sx, targetY, sx, targetY - 350);
-                pillarGrad.addColorStop(0, `rgba(255, 230, 100, ${pillarAlpha * 0.8})`);
-                pillarGrad.addColorStop(0.7, `rgba(255, 215, 0, ${pillarAlpha * 0.4})`);
-                pillarGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                ctx.fillStyle = pillarGrad;
-                ctx.fillRect(sx - 20, targetY - 350, 40, 350);
+                if (pillarAlpha > 0) {
+                    ctx.save();
 
-                // Ground shock ring
-                ctx.strokeStyle = `rgba(255, 240, 160, ${pillarAlpha})`;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.ellipse(sx, targetY, 35 * (1 - pillarAlpha * 0.5), 10, 0, 0, Math.PI * 2);
-                ctx.stroke();
+                    // Massive Vertical Holy Beam
+                    const beamWidth = 44 * scale;
+                    const beamHeight = 440;
+
+                    // Outer golden beam halo
+                    const outerBeam = ctx.createLinearGradient(sx - beamWidth, 0, sx + beamWidth, 0);
+                    outerBeam.addColorStop(0, 'rgba(245, 158, 11, 0)');
+                    outerBeam.addColorStop(0.3, `rgba(253, 224, 71, ${pillarAlpha * 0.55})`);
+                    outerBeam.addColorStop(0.7, `rgba(253, 224, 71, ${pillarAlpha * 0.55})`);
+                    outerBeam.addColorStop(1, 'rgba(245, 158, 11, 0)');
+                    ctx.fillStyle = outerBeam;
+                    ctx.fillRect(sx - beamWidth * 1.5, targetY - beamHeight, beamWidth * 3, beamHeight);
+
+                    // Inner brilliant core pillar
+                    const coreBeam = ctx.createLinearGradient(sx, targetY, sx, targetY - beamHeight);
+                    coreBeam.addColorStop(0, `rgba(255, 255, 255, ${pillarAlpha * 0.95})`);
+                    coreBeam.addColorStop(0.6, `rgba(255, 240, 150, ${pillarAlpha * 0.7})`);
+                    coreBeam.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = coreBeam;
+                    ctx.fillRect(sx - beamWidth * 0.5, targetY - beamHeight, beamWidth, beamHeight);
+
+                    // Expanding Concentric Shockwaves on Ground
+                    const shockRadius = (1 - pillarAlpha) * (85 * scale);
+                    ctx.strokeStyle = `rgba(255, 235, 140, ${pillarAlpha * 0.9})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.ellipse(sx, targetY, shockRadius, shockRadius * 0.3, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.strokeStyle = `rgba(245, 158, 11, ${pillarAlpha * 0.6})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.ellipse(sx, targetY, shockRadius * 1.35, shockRadius * 0.4, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Holy Ground Fissures
+                    ctx.strokeStyle = `rgba(255, 245, 180, ${pillarAlpha * 0.8})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(sx - 25 * scale, targetY + 2);
+                    ctx.lineTo(sx - 8 * scale, targetY - 1);
+                    ctx.lineTo(sx + 10 * scale, targetY + 3);
+                    ctx.lineTo(sx + 28 * scale, targetY);
+                    ctx.stroke();
+
+                    // Impaled Sword Hilt embedded in ground
+                    ctx.fillStyle = `rgba(255, 215, 0, ${pillarAlpha})`;
+                    ctx.fillRect(sx - 3 * scale, targetY - 45 * scale, 6 * scale, 45 * scale);
+
+                    ctx.restore();
+                }
             }
         }
 
@@ -1045,24 +1248,46 @@ export class VFXManager {
     }
 
     createDawnOfJudgment(player) {
-        this.flashScreen('#fff8cc', 0.5, 0.4);
+        // Celestial screen flash
+        this.flashScreen('#fffbeb', 0.45, 0.55);
 
+        // 7 staggered heavenly broadswords raining down across the forward arena
         const swords = [
-            { offsetX: player.facing * 40, delay: 0.0 },
-            { offsetX: player.facing * 120, delay: 0.1 },
-            { offsetX: player.facing * 200, delay: 0.2 },
-            { offsetX: player.facing * 280, delay: 0.3 },
-            { offsetX: player.facing * -50, delay: 0.15 }
+            { offsetX: player.facing * -60, delay: 0.00, size: 1.1, impacted: false },
+            { offsetX: player.facing * 40,  delay: 0.07, size: 1.25, impacted: false },
+            { offsetX: player.facing * 130, delay: 0.14, size: 1.35, impacted: false },
+            { offsetX: player.facing * 220, delay: 0.21, size: 1.5,  impacted: false },
+            { offsetX: player.facing * 310, delay: 0.28, size: 1.4,  impacted: false },
+            { offsetX: player.facing * 400, delay: 0.35, size: 1.25, impacted: false },
+            { offsetX: player.facing * 490, delay: 0.42, size: 1.1,  impacted: false }
         ];
 
         this.effects.push({
             type: 'holySwords',
             x: player.x,
             y: player.y,
+            facing: player.facing,
             swords,
-            life: 1.1,
-            maxLife: 1.1
+            life: 1.5,
+            maxLife: 1.5
         });
+
+        // Erupting holy sparks and radiant feathers at cast position
+        for (let i = 0; i < 28; i++) {
+            const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.8;
+            const speed = 70 + Math.random() * 160;
+            this.particles.push({
+                x: player.x + (Math.random() - 0.5) * 40,
+                y: player.y - 45,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 3 + Math.random() * 5,
+                color: Math.random() < 0.6 ? '#fde047' : '#ffffff',
+                life: 0.5 + Math.random() * 0.4,
+                maxLife: 0.9,
+                gravity: -30
+            });
+        }
     }
 
     // --- BROWN HAIR WARRIOR SKILLS ---

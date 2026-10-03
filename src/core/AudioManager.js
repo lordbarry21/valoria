@@ -100,6 +100,7 @@ export class AudioManager {
         this.sounds.ui_select = this.createUISelectSound(0.15);
         this.sounds.skill_ready = this.createSkillReadySound(0.2);
         this.sounds.victory = this.createVictorySound(0.5);
+        this.sounds.holy_judgment = this.createHolyJudgmentSound(1.6);
 
         // Ambient sounds
         this.sounds.ambient_wind = this.createAmbientWindSound();
@@ -617,6 +618,49 @@ export class AudioManager {
                 osc.start(startTime);
                 osc.stop(startTime + duration);
             });
+        };
+    }
+
+    createHolyJudgmentSound(duration) {
+        return () => {
+            if (!this.initialized) return;
+
+            // Celestial chime arpeggio: D5, F#5, A5, D6, F#6 with cathedral sustain
+            const notes = [587.33, 739.99, 880.00, 1174.66, 1479.98];
+            notes.forEach((freq, i) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+                osc.frequency.value = freq;
+
+                const startTime = this.ctx.currentTime + i * 0.08;
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(0.2, startTime + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+                osc.connect(gain);
+                gain.connect(this.sfxGain);
+
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            });
+
+            // Deep sacred sub-bass rumble
+            const subOsc = this.ctx.createOscillator();
+            const subGain = this.ctx.createGain();
+            subOsc.type = 'sine';
+            subOsc.frequency.setValueAtTime(110, this.ctx.currentTime);
+            subOsc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + duration * 0.8);
+
+            subGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+            subGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+            subOsc.connect(subGain);
+            subGain.connect(this.sfxGain);
+
+            subOsc.start();
+            subOsc.stop(this.ctx.currentTime + duration);
         };
     }
 

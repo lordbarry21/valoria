@@ -4,7 +4,7 @@
  */
 
 import { Enemy } from './Enemy.js';
-import { player, vfxManager, audioManager, camera } from '../main.js';
+import { player, vfxManager, audioManager, camera, gameWorld } from '../main.js';
 
 const BOSS_SHEETS = {
     idle: { file: 'Knight-villain-boss/noBKG_KnightIdle_strip.png', cellW: 64, cellH: 64, frames: 15, fps: 12, anchorX: 35, anchorY: 44 },
@@ -41,8 +41,10 @@ export class BossKnight extends Enemy {
         this.attackRange = 75;
         this.attackCooldownMax = 1.6;
 
-        this.aggroRange = 400;
-        this.moveSpeed = 120;
+        this.aggroRange = 99999; // Relentless global chase!
+        this.moveSpeed = 135;
+        this.climbSpeed = 130;
+        this.leapCooldown = 3.5;
 
         this.damageTakenMultiplier = 0.6;
         this.knockbackResistance = 0.2;
@@ -54,6 +56,47 @@ export class BossKnight extends Enemy {
         for (const cfg of Object.values(BOSS_SHEETS)) {
             getImage(cfg.file);
         }
+    }
+
+    updateAI(dt) {
+        if (!player || player.isDead) {
+            super.updateAI(dt);
+            return;
+        }
+
+        const distToPlayer = Math.abs(this.x - player.x);
+        const verticalDist = Math.abs(this.y - player.y);
+
+        // Sprint dynamically when far away to catch the player
+        this.moveSpeed = distToPlayer > 300 ? 190 : 135;
+
+        if (this.leapCooldown === undefined) this.leapCooldown = 4;
+        this.leapCooldown -= dt;
+
+        // Shadow Leap: if player is on another platform or very far (> 420px)
+        if (this.state === 'chase' && this.leapCooldown <= 0 && (verticalDist > 45 || distToPlayer > 420)) {
+            this.leapCooldown = 6.0;
+            this.executeShadowLeap();
+            return;
+        }
+
+        super.updateAI(dt);
+    }
+
+    executeShadowLeap() {
+        if (this.isDead || !player) return;
+        audioManager.playSFX('sword_swing_heavy');
+        vfxManager.createImpact(this.x, this.y - 30, 'sword_impact_heavy');
+
+        const offset = (player.x > this.x ? -1 : 1) * 75;
+        this.x = gameWorld.clampX(player.x + offset, this.width / 2);
+        this.y = player.y;
+        this.facing = player.x > this.x ? 1 : -1;
+
+        camera.shakeMedium();
+        vfxManager.createImpact(this.x, this.y - 30, 'sword_impact_heavy');
+        this.setState('attack');
+        this.startAttack();
     }
 
     startAttack() {
@@ -157,7 +200,7 @@ export class BossKnight extends Enemy {
         } else if (this.isAttacking || this.state === 'attack') {
             animKey = 'attack';
             frame = Math.min(21, Math.floor(this.stateTime * 15));
-        } else if (this.state === 'chase' || Math.abs(this.vx) > 10) {
+        } else if (this.state === 'chase' || this.state === 'climb' || Math.abs(this.vx) > 10) {
             animKey = 'run';
             frame = Math.floor(this.animTime * 11) % 8;
         } else {

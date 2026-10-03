@@ -43,6 +43,7 @@ import { EnemyManager } from './enemies/EnemyManager.js';
 import { CombatSystem } from './combat/CombatSystem.js';
 import { VFXManager } from './effects/VFXManager.js';
 import { UIManager } from './ui/UIManager.js';
+import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js';
 
 // Global references
 export let canvas, ctx;
@@ -55,6 +56,8 @@ export let enemyManager;
 export let combatSystem;
 export let vfxManager;
 export let uiManager;
+export let cemeteryMenuRenderer;
+let selectedChampion = 'knight';
 
 // ============================================================================
 // INITIALIZATION
@@ -79,6 +82,12 @@ function init() {
     enemyManager = new EnemyManager();
     player = new Player();
     uiManager = new UIManager();
+    cemeteryMenuRenderer = new CemeteryHillsMenuRenderer();
+    cemeteryMenuRenderer.setSelectedHero(selectedChampion);
+    cemeteryMenuRenderer.onSelectHero = (heroId) => {
+        selectedChampion = heroId;
+        player.setCharacter(heroId);
+    };
 
     setupInputHandlers();
     setupUIHandlers();
@@ -149,18 +158,86 @@ function openSettings(returnScreen) {
 }
 
 function setupUIHandlers() {
-    // Open character selection screen from Main Menu
-    document.getElementById('btn-start').addEventListener('click', () => showScreen('char-select-screen'));
-    document.getElementById('btn-char-select-back').addEventListener('click', () => showScreen('main-menu'));
+    // Start Game: launches battle directly with the currently selected champion
+    const fsModal = document.getElementById('fullscreen-modal');
+    document.getElementById('btn-start').addEventListener('click', () => {
+        audioManager.playSound('ui_click');
+        player.setCharacter(selectedChampion);
+        if (!document.fullscreenElement) {
+            fsModal?.classList.remove('hidden');
+        } else {
+            startGame();
+        }
+    });
+
+    document.getElementById('btn-fs-yes')?.addEventListener('click', async () => {
+        fsModal?.classList.add('hidden');
+        try {
+            await document.documentElement.requestFullscreen?.();
+        } catch (_) {}
+        player.setCharacter(selectedChampion);
+        startGame();
+    });
+
+    document.getElementById('btn-fs-no')?.addEventListener('click', () => {
+        fsModal?.classList.add('hidden');
+        player.setCharacter(selectedChampion);
+        startGame();
+    });
+
+    // Circular Hero Select Button
+    document.getElementById('btn-menu-heroes')?.addEventListener('click', () => {
+        audioManager.playSound('ui_click');
+        showScreen('char-select-screen');
+    });
+
+    document.getElementById('btn-char-select-back').addEventListener('click', () => {
+        audioManager.playSound('ui_click');
+        showScreen('main-menu');
+        cemeteryMenuRenderer.setSelectedHero(selectedChampion);
+    });
 
     // Direct Play buttons on each character card: One-click immediately starts game!
     document.querySelectorAll('.btn-direct-play').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const charId = e.currentTarget.dataset.char;
+            selectedChampion = charId;
+            cemeteryMenuRenderer.setSelectedHero(charId);
             player.setCharacter(charId);
             startGame();
         });
     });
+
+    // Interactive Hero selection on CemeteryHills main menu
+    const mainMenuEl = document.getElementById('main-menu');
+    if (mainMenuEl) {
+        mainMenuEl.addEventListener('mousemove', (e) => {
+            if (currentState !== GameState.MENU) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+            const { cursor } = cemeteryMenuRenderer.handleMouseMove(mouseX, mouseY);
+            mainMenuEl.style.cursor = cursor;
+        });
+
+        mainMenuEl.addEventListener('click', (e) => {
+            if (currentState !== GameState.MENU) return;
+            if (e.target.closest('button')) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+            const clickedHero = cemeteryMenuRenderer.handleClick(mouseX, mouseY);
+            if (clickedHero) {
+                selectedChampion = clickedHero;
+                player.setCharacter(clickedHero);
+                audioManager.playSound('ui_select');
+            }
+        });
+    }
 
     document.getElementById('btn-settings').addEventListener('click', () => openSettings('main-menu'));
     document.getElementById('btn-settings-back').addEventListener('click', () => showScreen(settingsReturnScreen));
@@ -196,6 +273,7 @@ function setupUIHandlers() {
 // SCREEN MANAGEMENT
 // ============================================================================
 function showScreen(screenId) {
+    document.getElementById('fullscreen-modal')?.classList.add('hidden');
     document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.add('hidden');
     });
@@ -356,29 +434,13 @@ function render() {
 }
 
 function renderMenuBackground() {
-    // Dark atmospheric background for menu
-    const gradient = ctx.createRadialGradient(
-        canvas.width / 2, canvas.height / 2, 0,
-        canvas.width / 2, canvas.height / 2, canvas.width / 2
-    );
-    gradient.addColorStop(0, '#1a0a0a');
-    gradient.addColorStop(1, '#050505');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    cemeteryMenuRenderer.render(ctx, canvas.width, canvas.height, deltaTime);
 
-    // Add some ambient particles
-    ctx.fillStyle = 'rgba(139, 0, 0, 0.1)';
-    const menuTime = lastTime / 1000;
-    for (let i = 0; i < 50; i++) {
-        const x = (Math.sin(menuTime * 0.5 + i * 0.5) + 1) * canvas.width / 2;
-        const y = (i / 50) * canvas.height;
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, Math.PI * 2);
-        ctx.fill();
+    // Render live animated pixel-art idle sprites in character selection cards if open
+    const charSelectScreen = document.getElementById('char-select-screen');
+    if (charSelectScreen && !charSelectScreen.classList.contains('hidden')) {
+        renderHeroPreviews(lastTime / 1000);
     }
-
-    // Render live animated pixel-art idle sprites in character selection cards
-    renderHeroPreviews(menuTime);
 }
 
 const previewImages = {
