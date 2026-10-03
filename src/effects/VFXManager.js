@@ -225,6 +225,10 @@ export class VFXManager {
         ctx.restore();
     }
 
+    renderRadiantVortex(ctx, effect, progress) {
+        this.renderRadiantTempest(ctx, effect, progress);
+    }
+
     renderRadiantTempest(ctx, effect, progress) {
         const { x, y } = effect;
         ctx.save();
@@ -470,7 +474,8 @@ export class VFXManager {
                 this.renderSolarBeam(ctx, effect, progress);
                 break;
             case 'radiantVortex':
-                this.renderRadiantVortex(ctx, effect, progress);
+            case 'radiantTempest':
+                this.renderRadiantTempest(ctx, effect, progress);
                 break;
             case 'holySwords':
                 this.renderHolySwords(ctx, effect, progress);

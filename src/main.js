@@ -107,7 +107,7 @@ function resizeCanvas() {
     canvas.style.top = '0px';
 
     if (camera) {
-        camera.bounds.maxX = Math.max(targetWidth, gameWorld?.arenaWidth || 1400);
+        camera.bounds.maxX = Math.max(targetWidth, gameWorld?.arenaWidth || 2600);
         camera.bounds.maxY = targetHeight;
     }
 }

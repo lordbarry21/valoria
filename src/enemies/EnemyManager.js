@@ -13,14 +13,16 @@ import { MushroomEnemy } from './MushroomEnemy.js';
 import { Brute } from './Brute.js';
 import { ShadowCaster } from './ShadowCaster.js';
 import { BossKnight } from './BossKnight.js';
+import { PlagueRat } from './PlagueRat.js';
 
 const TOTAL_WAVES = 6;
 const WAVE_INTERMISSION = 2.0;
 const WAVE_BANNER_DURATION = 2.5;
-const MIN_SPAWN_DISTANCE_FROM_PLAYER = 300;
-const SPAWN_XS = [1250, 150, 1100, 300, 1180, 230];
+const MIN_SPAWN_DISTANCE_FROM_PLAYER = 320;
+const SPAWN_XS = [180, 520, 950, 1420, 1850, 2250, 2450];
 
 const ENEMY_FACTORIES = {
+    rat: () => new PlagueRat(),
     wraith: () => new WraithSoldier(),
     skeleton: () => new SkeletonEnemy(),
     goblin: () => new GoblinEnemy(),
@@ -61,27 +63,27 @@ export class EnemyManager {
         let banner = `Stage 1 - Wave ${this.waveNumber}`;
 
         if (this.waveNumber === 1) {
-            banner = 'Stage 1: Castle Ramparts - Wave 1';
-            roster = ['wraith', 'wraith', 'skeleton', 'skeleton'];
+            banner = 'Stage 1: Castle Ramparts - Infestation';
+            roster = ['rat', 'rat', 'rat', 'skeleton', 'skeleton'];
         } else if (this.waveNumber === 2) {
-            banner = 'Wave 2: Goblin Ambush';
-            roster = ['goblin', 'goblin', 'eye', 'eye', 'skeleton'];
+            banner = 'Wave 2: Goblin Ambush & Flying Fiends';
+            roster = ['goblin', 'goblin', 'rat', 'rat', 'eye', 'eye', 'skeleton'];
         } else if (this.waveNumber === 3) {
-            banner = 'MINI-BOSS: Fungal Abomination';
-            roster = ['mushroom', 'skeleton', 'skeleton'];
+            banner = 'MINI-BOSS: Fungal Abomination & Plague Swarm';
+            roster = ['mushroom', 'brute', 'rat', 'rat', 'skeleton', 'skeleton'];
         } else if (this.waveNumber === 4) {
             this.stage = 2;
-            banner = 'Stage 2: Frozen Citadel - Wave 4';
+            banner = 'Stage 2: Frozen Citadel - Aerial Dread';
             if (gameWorld?.bgImage) {
                 gameWorld.bgImage.src = 'Assets/Assets/PNG/Ice-Background.png';
             }
-            roster = ['brute', 'brute', 'goblin', 'goblin', 'eye'];
+            roster = ['brute', 'brute', 'goblin', 'goblin', 'eye', 'eye', 'rat', 'rat'];
         } else if (this.waveNumber === 5) {
-            banner = 'BOSS: The Dark Necromancer';
-            roster = ['caster', 'skeleton', 'skeleton', 'wraith', 'wraith'];
+            banner = 'BOSS: The Dark Necromancer & The Undead Horde';
+            roster = ['caster', 'skeleton', 'skeleton', 'wraith', 'wraith', 'brute'];
         } else if (this.waveNumber === 6) {
             banner = 'FINAL CLIMAX: Malakar, The Fallen Knight';
-            roster = ['boss'];
+            roster = ['boss', 'brute', 'skeleton'];
         }
 
         const spawnXs = this.getSpawnPositions();

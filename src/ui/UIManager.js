@@ -32,6 +32,22 @@ export class UIManager {
         this.cooldownTextE = document.getElementById('cooldown-text-e');
         this.cooldownTextR = document.getElementById('cooldown-text-r');
 
+        this.crestCanvas = document.getElementById('player-crest-canvas');
+        this.crestCtx = this.crestCanvas ? this.crestCanvas.getContext('2d') : null;
+        if (this.crestCtx) {
+            this.crestCtx.imageSmoothingEnabled = false;
+        }
+
+        this.avatarImages = {
+            knight: new Image(),
+            blonde: new Image(),
+            brown: new Image(),
+        };
+        this.avatarImages.knight.src = 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Idle.png';
+        this.avatarImages.blonde.src = 'girl warior.png';
+        this.avatarImages.brown.src = 'Girl Warior brown hair/Warrior/SpriteSheet/Warrior_Sheet-Effect.png';
+        this.avatarAnimTime = 0;
+
         // Track previous states for animations
         this._prevHealth = 100;
         this._prevRage = 0;
@@ -52,21 +68,6 @@ export class UIManager {
         if (!player || !player.character) return;
         const c = player.character;
 
-        // Update crest avatar
-        const crest = document.querySelector('.crest-avatar');
-        if (crest) {
-            if (c.id === 'knight') {
-                crest.style.background = 'url("FreeKnight/Colour1/Outline/120x80_PNGSheets/_Idle.png") -39px -36px / 260px 173px no-repeat';
-                crest.style.imageRendering = 'pixelated';
-            } else if (c.id === 'blonde') {
-                crest.style.background = 'url("girl%20warior.png") -18px -8px / 200px 380px no-repeat';
-                crest.style.imageRendering = 'pixelated';
-            } else if (c.id === 'brown') {
-                crest.style.background = 'url("Girl%20Warior%20brown%20hair/Warrior/SpriteSheet/Warrior_Sheet-Effect.png") -18px -8px / 200px 360px no-repeat';
-                crest.style.imageRendering = 'pixelated';
-            }
-        }
-
         // Skill 1 (Q)
         const qName = this.abilityQ?.querySelector('.ability-name');
         if (qName) qName.textContent = c.skills.skill1.name;
@@ -86,9 +87,54 @@ export class UIManager {
         if (rIcon) rIcon.className = `ability-icon ${c.skills.skill3.icon}`;
     }
 
+    renderProfileAvatar(dt) {
+        if (!this.crestCtx || !player?.character) return;
+        this.avatarAnimTime += dt;
+        const ctx = this.crestCtx;
+        const w = this.crestCanvas.width;
+        const h = this.crestCanvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const charId = player.character.id;
+        const img = this.avatarImages[charId];
+        if (!img || !img.complete || img.naturalWidth <= 0) return;
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+
+        if (charId === 'knight') {
+            const frame = Math.floor(this.avatarAnimTime * 10) % 10;
+            const srcX = frame * 120 + 42;
+            const srcY = 40;
+            const srcW = 26;
+            const srcH = 34;
+            const scale = 1.65;
+            const destW = srcW * scale;
+            const destH = srcH * scale;
+            const destX = Math.round((w - destW) / 2);
+            const destY = Math.round((h - destH) / 2) + 2;
+            ctx.drawImage(img, srcX, srcY, srcW, srcH, destX, destY, destW, destH);
+        } else if (charId === 'blonde' || charId === 'brown') {
+            const frame = Math.floor(this.avatarAnimTime * 8) % 6;
+            const srcX = frame * 69 + 17;
+            const srcY = 8;
+            const srcW = 22;
+            const srcH = 30;
+            const scale = 1.85;
+            const destW = srcW * scale;
+            const destH = srcH * scale;
+            const destX = Math.round((w - destW) / 2);
+            const destY = Math.round((h - destH) / 2) + 2;
+            ctx.drawImage(img, srcX, srcY, srcW, srcH, destX, destY, destW, destH);
+        }
+
+        ctx.restore();
+    }
+
     update(dt) {
         if (!player) return;
 
+        this.renderProfileAvatar(dt || 0.016);
         this.updateHealth();
         this.updateStamina();
         this.updateRage();
@@ -179,8 +225,8 @@ export class UIManager {
             true
         );
 
-        // R - Requires rage >= 100
-        const rageReady = player.rage >= 100;
+        // R - Requires rage >= 50
+        const rageReady = player.rage >= 50 || player.isRaging;
         this.updateAbilitySlot(
             this.abilityR,
             this.cooldownR,

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VALORIA - Multi-Hero Player System
  * Supports 3 playable archetypes:
  * 1. Sir Roland (The Knight / FreeKnight) - Heavy Tank, Rage, cannot climb ladders
@@ -309,7 +309,8 @@ export class Player {
         }
 
         if (!this.isRaging && this.rage > 0) {
-            this.rage = Math.max(0, this.rage - 2 * dt);
+            // Very slow decay so player keeps built rage between skirmishes
+            this.rage = Math.max(0, this.rage - 0.75 * dt);
         }
     }
 
@@ -519,9 +520,9 @@ export class Player {
         if (sm.currentState === 'Climb' || sm.currentState === 'Death' || sm.currentState === 'Hurt' || sm.currentState === 'Dodge') return;
         if (sm.currentState !== 'Attack' && !sm.canTransition('Attack')) return;
 
-        // Knight has 3-hit combo, girl warriors have crisp 2-hit basic combo
+        // All heroes have a full, satisfying 3-hit combo chain
         const isAir = !this.grounded;
-        const maxCombo = this.characterId === 'knight' ? 3 : 2;
+        const maxCombo = 3;
         const continuingCombo = this.comboTimer > 0 && this.comboCount > 0;
         this.comboCount = continuingCombo ? (this.comboCount % maxCombo) + 1 : 1;
         this.executeAttack(isAir);
@@ -633,7 +634,14 @@ export class Player {
         if (!skill || skill.cooldown > 0) return;
         if (!this.stateMachine.canTransition('SkillCast')) return;
 
-        if (slotKey === 'skill3' && this.rage < this.maxRage && !this.isRaging) return;
+        if (slotKey === 'skill3') {
+            // Require 50+ rage to unleash ultimate, or allow cast if raging
+            if (this.rage < 50 && !this.isRaging) {
+                this.notify('Need 50+ Rage for Ultimate!', '#ff5533');
+                audioManager.playSFX('sword_impact_heavy');
+                return;
+            }
+        }
 
         skill.cooldown = skill.maxCooldown;
 
@@ -1185,10 +1193,19 @@ export class Player {
                 // Combo 1: Attack 1 (Row 2, cols 2, 3, 4, 5)
                 const c1 = [2, 3, 4, 5];
                 return { row: 2, col: c1[Math.min(3, frameIdx)] };
-            } else {
+            } else if (this.comboCount === 2) {
                 // Combo 2: Attack 2 (Row 3, cols 0, 1, 2, 3)
                 const c2 = [0, 1, 2, 3];
                 return { row: 3, col: c2[Math.min(3, frameIdx)] };
+            } else {
+                // Combo 3 Finisher: Whirlwind slash (Row 3 cols 4..5, Row 4 cols 0..1)
+                const c3 = [
+                    { row: 3, col: 4 },
+                    { row: 3, col: 5 },
+                    { row: 4, col: 0 },
+                    { row: 4, col: 1 }
+                ];
+                return c3[Math.min(3, frameIdx)];
             }
         }
         if (state === 'HeavyAttack') {

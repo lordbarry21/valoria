@@ -56,7 +56,10 @@ export class CombatSystem {
             player.attackHitEnemies.add(enemy);
             this.applyDamageToEnemy(enemy, attack);
             this.triggerHitFeedback(attack, enemy);
-            player.gainRage(attack.rageGain || 5);
+            player.gainRage(attack.rageGain || 12);
+            if (enemy.isDead) {
+                player.gainRage(15);
+            }
 
             // Blonde hero passive: Solar blessing heals on hit
             if (player.characterId === 'blonde') {

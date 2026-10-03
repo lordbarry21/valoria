@@ -13,8 +13,8 @@ export class GameWorld {
     }
 
     constructor() {
-        // Arena dimensions
-        this.arenaWidth = 1400;
+        // Arena dimensions - expanded to 2600px epic multi-tier battlefield
+        this.arenaWidth = 2600;
         this.arenaHeight = 600;
         this.viewHeight = GAME_CONFIG.CANVAS_HEIGHT;
         this.floorY = 500;
@@ -62,37 +62,48 @@ export class GameWorld {
     init() {
         this.time = 0;
 
-        // Set up platforms (main floor + elevated ramparts)
+        // Set up platforms (main floor + 4 elevated ramparts across 2600px arena)
         this.platforms = [
             { x: 0, y: this.floorY, width: this.arenaWidth, height: 100 },
-            { x: 260, y: 340, width: 220, height: 20 },
-            { x: 920, y: 340, width: 220, height: 20 }
+            { x: 260, y: 340, width: 230, height: 20 },
+            { x: 880, y: 320, width: 240, height: 20 },
+            { x: 1480, y: 320, width: 240, height: 20 },
+            { x: 2100, y: 340, width: 230, height: 20 }
         ];
 
-        // Set up climbable ladders
+        // Set up climbable ladders for agile heroes
         this.ladders = [
-            { x: 370, topY: 340, bottomY: this.floorY, width: 28 },
-            { x: 1030, topY: 340, bottomY: this.floorY, width: 28 }
+            { x: 375, topY: 340, bottomY: this.floorY, width: 28 },
+            { x: 1000, topY: 320, bottomY: this.floorY, width: 28 },
+            { x: 1600, topY: 320, bottomY: this.floorY, width: 28 },
+            { x: 2215, topY: 340, bottomY: this.floorY, width: 28 }
         ];
 
-        // Set up decorations
+        // Set up decorations distributed across 2600px arena
         this.decorations = [
             // Stone pillars with variety
             { type: 'pillar', x: 100, y: this.floorY, width: 45, height: 160, damage: 0.3 },
-            { type: 'pillar', x: 300, y: this.floorY, width: 40, height: 130, damage: 0.5 },
-            { type: 'pillar', x: 700, y: this.floorY, width: 50, height: 150, damage: 0.2 },
-            { type: 'pillar', x: 1000, y: this.floorY, width: 42, height: 140, damage: 0.4 },
-            { type: 'pillar', x: 1300, y: this.floorY, width: 48, height: 165, damage: 0.35 },
+            { type: 'pillar', x: 310, y: this.floorY, width: 40, height: 130, damage: 0.5 },
+            { type: 'pillar', x: 680, y: this.floorY, width: 50, height: 150, damage: 0.2 },
+            { type: 'pillar', x: 1050, y: this.floorY, width: 42, height: 140, damage: 0.4 },
+            { type: 'pillar', x: 1300, y: this.floorY, width: 52, height: 170, damage: 0.3 },
+            { type: 'pillar', x: 1680, y: this.floorY, width: 42, height: 145, damage: 0.35 },
+            { type: 'pillar', x: 2020, y: this.floorY, width: 46, height: 155, damage: 0.45 },
+            { type: 'pillar', x: 2450, y: this.floorY, width: 48, height: 165, damage: 0.25 },
 
-            // Broken walls
+            // Broken fortress walls
             { type: 'wall', x: 0, y: this.floorY - 80, width: 80, height: 80, damage: 0.6 },
-            { type: 'wall', x: this.arenaWidth - 60, y: this.floorY - 100, width: 60, height: 100, damage: 0.4 },
+            { type: 'wall', x: 1260, y: this.floorY - 90, width: 80, height: 90, damage: 0.4 },
+            { type: 'wall', x: this.arenaWidth - 70, y: this.floorY - 100, width: 70, height: 100, damage: 0.4 },
 
             // Rubble clusters
             { type: 'rubble', x: 180, y: this.floorY, width: 80, height: 25 },
-            { type: 'rubble', x: 480, y: this.floorY, width: 100, height: 20 },
-            { type: 'rubble', x: 880, y: this.floorY, width: 70, height: 22 },
-            { type: 'rubble', x: 1130, y: this.floorY, width: 90, height: 28 }
+            { type: 'rubble', x: 520, y: this.floorY, width: 100, height: 20 },
+            { type: 'rubble', x: 840, y: this.floorY, width: 70, height: 22 },
+            { type: 'rubble', x: 1200, y: this.floorY, width: 90, height: 28 },
+            { type: 'rubble', x: 1440, y: this.floorY, width: 85, height: 24 },
+            { type: 'rubble', x: 1840, y: this.floorY, width: 95, height: 26 },
+            { type: 'rubble', x: 2320, y: this.floorY, width: 90, height: 25 }
         ];
 
         // Random shapes are rolled once here; rolling them in render() made walls and rubble jitter every frame.
@@ -103,10 +114,13 @@ export class GameWorld {
 
         // Set up torch lights
         this.lights = [
-            { x: 150, y: this.floorY - 180, intensity: 0.5, flicker: 0.12 },
+            { x: 160, y: this.floorY - 180, intensity: 0.5, flicker: 0.12 },
             { x: 500, y: this.floorY - 180, intensity: 0.4, flicker: 0.15 },
-            { x: 850, y: this.floorY - 180, intensity: 0.5, flicker: 0.1 },
-            { x: 1200, y: this.floorY - 180, intensity: 0.45, flicker: 0.08 }
+            { x: 860, y: this.floorY - 180, intensity: 0.5, flicker: 0.1 },
+            { x: 1240, y: this.floorY - 180, intensity: 0.45, flicker: 0.08 },
+            { x: 1620, y: this.floorY - 180, intensity: 0.48, flicker: 0.11 },
+            { x: 1980, y: this.floorY - 180, intensity: 0.42, flicker: 0.14 },
+            { x: 2380, y: this.floorY - 180, intensity: 0.5, flicker: 0.1 }
         ];
 
         // Initialize background layers
