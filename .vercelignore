@@ -1,0 +1,9 @@
+# Archives & PSD sources
+*.zip
+*.psd
+Assets/Assets/PSD/
+
+# Agent & Dev files
+CLAUDE.md
+graphify-out/
+.git/
