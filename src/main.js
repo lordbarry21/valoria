@@ -43,7 +43,7 @@ import { EnemyManager } from './enemies/EnemyManager.js';
 import { CombatSystem } from './combat/CombatSystem.js';
 import { VFXManager } from './effects/VFXManager.js';
 import { UIManager } from './ui/UIManager.js';
-import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js?v=20261004_1';
+import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js?v=20261004_5';
 
 // Global references
 export let canvas, ctx;
@@ -185,45 +185,9 @@ function setupUIHandlers() {
         startGame();
     });
 
-    function updateSelectedHeroModalUI() {
-        document.querySelectorAll('.hero-modal-row').forEach(row => {
-            const isCurrent = row.dataset.char === selectedChampion;
-            row.classList.toggle('selected', isCurrent);
-            const btn = row.querySelector('.btn-select-hero');
-            if (btn) btn.textContent = isCurrent ? 'SELECTED' : 'SELECT';
-        });
-    }
-
-    // Modal Champion Selection (Red Minimalist Style)
-    document.querySelectorAll('.hero-modal-row').forEach(row => {
-        row.addEventListener('click', (e) => {
-            const charId = row.dataset.char;
-            selectedChampion = charId;
-            cemeteryMenuRenderer.setSelectedHero(charId);
-            player.setCharacter(charId);
-            audioManager.playSFX('ui_select');
-            updateSelectedHeroModalUI();
-            showScreen('main-menu');
-        });
-    });
-
-    document.querySelectorAll('.btn-select-hero').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const charId = btn.dataset.char;
-            selectedChampion = charId;
-            cemeteryMenuRenderer.setSelectedHero(charId);
-            player.setCharacter(charId);
-            audioManager.playSFX('ui_select');
-            updateSelectedHeroModalUI();
-            showScreen('main-menu');
-        });
-    });
-
     // Circular Hero Select Button
     document.getElementById('btn-menu-heroes')?.addEventListener('click', () => {
         audioManager.playSFX('ui_click');
-        updateSelectedHeroModalUI();
         showScreen('char-select-screen');
     });
 
@@ -233,45 +197,23 @@ function setupUIHandlers() {
         cemeteryMenuRenderer.setSelectedHero(selectedChampion);
     });
 
-    // Interactive Hero click on the cliff in CemeteryHills main menu
-    cemeteryMenuRenderer.onHeroClick = () => {
-        audioManager.playSFX('ui_click');
-        updateSelectedHeroModalUI();
-        showScreen('char-select-screen');
-    };
-
-    const mainMenuEl = document.getElementById('main-menu');
-    if (mainMenuEl) {
-        mainMenuEl.addEventListener('mousemove', (e) => {
-            if (currentState !== GameState.MENU) return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const mouseX = (e.clientX - rect.left) * scaleX;
-            const mouseY = (e.clientY - rect.top) * scaleY;
-            const { cursor } = cemeteryMenuRenderer.handleMouseMove(mouseX, mouseY);
-            mainMenuEl.style.cursor = cursor;
-        });
-
-        mainMenuEl.addEventListener('click', (e) => {
-            if (currentState !== GameState.MENU) return;
-            if (e.target.closest('button')) return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const mouseX = (e.clientX - rect.left) * scaleX;
-            const mouseY = (e.clientY - rect.top) * scaleY;
-            const clickedHero = cemeteryMenuRenderer.handleClick(mouseX, mouseY);
-            if (clickedHero) {
-                audioManager.playSFX('ui_click');
-                updateSelectedHeroModalUI();
-                showScreen('char-select-screen');
-            }
-        });
-    }
+    // Hero on main menu is purely a scenic centerpiece (selection done via CHOOSE HERO button)
 
     document.getElementById('btn-settings').addEventListener('click', () => openSettings('main-menu'));
     document.getElementById('btn-settings-back').addEventListener('click', () => showScreen(settingsReturnScreen));
+
+    // Hero Select Buttons
+    document.querySelectorAll('.hero-select-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const charId = btn.dataset.char;
+            selectedChampion = charId;
+            cemeteryMenuRenderer.setSelectedHero(charId);
+            player.setCharacter(charId);
+            audioManager.playSFX('ui_select');
+            showScreen('main-menu');
+        });
+    });
 
     const bindVolumeSlider = (sliderId, labelId, applyVolume) => {
         document.getElementById(sliderId).addEventListener('input', (e) => {
@@ -484,43 +426,55 @@ previewImages.blonde.src = 'girl warior.png';
 previewImages.brown.src = 'Girl Warior brown hair/Warrior/SpriteSheet/Warrior_Sheet-Effect.png';
 
 function renderHeroPreviews(time) {
-    // Knight Preview
+    // Knight Preview - centered in 140x120 canvas
     const cK = document.getElementById('hero-preview-knight');
     if (cK && previewImages.knight.complete && previewImages.knight.naturalWidth > 0) {
         const ctxK = cK.getContext('2d');
         ctxK.imageSmoothingEnabled = false;
         ctxK.clearRect(0, 0, cK.width, cK.height);
         const frame = Math.floor(time * 10) % 10;
-        const scale = 1.05;
-        const dx = Math.round((cK.width - 120 * scale) / 2);
-        const dy = Math.round(cK.height - 76 * scale);
-        ctxK.drawImage(previewImages.knight, frame * 120, 0, 120, 80, dx, dy, 120 * scale, 80 * scale);
+        // Knight frame is 120x80, scale to fit nicely in 140x120
+        const scale = 1.2;
+        const spriteW = 120 * scale;
+        const spriteH = 80 * scale;
+        // Center horizontally, position at bottom
+        const dx = Math.round((cK.width - spriteW) / 2);
+        const dy = Math.round(cK.height - spriteH - 5);
+        ctxK.drawImage(previewImages.knight, frame * 120, 0, 120, 80, dx, dy, spriteW, spriteH);
     }
 
-    // Blonde Valkyrie Preview (slowed by 10% for natural breathing)
+    // Blonde Valkyrie Preview - centered in 140x120 canvas
     const cB = document.getElementById('hero-preview-blonde');
     if (cB && previewImages.blonde.complete && previewImages.blonde.naturalWidth > 0) {
         const ctxB = cB.getContext('2d');
         ctxB.imageSmoothingEnabled = false;
         ctxB.clearRect(0, 0, cB.width, cB.height);
         const frame = Math.floor(time * 7.2) % 6;
-        const scale = 1.35;
-        const dx = Math.round((cB.width - 69 * scale) / 2);
-        const dy = Math.round(cB.height - 40 * scale);
-        ctxB.drawImage(previewImages.blonde, frame * 69, 0, 69, 44, dx, dy, 69 * scale, 44 * scale);
+        // Blonde frame is 69x44, scale to fit nicely in 140x120
+        const scale = 1.6;
+        const spriteW = 69 * scale;
+        const spriteH = 44 * scale;
+        // Center horizontally, position at bottom
+        const dx = Math.round((cB.width - spriteW) / 2);
+        const dy = Math.round(cB.height - spriteH - 5);
+        ctxB.drawImage(previewImages.blonde, frame * 69, 0, 69, 44, dx, dy, spriteW, spriteH);
     }
 
-    // Brown Assassin Preview (slowed by 10% for natural breathing)
+    // Brown Assassin Preview - centered in 140x120 canvas
     const cBr = document.getElementById('hero-preview-brown');
     if (cBr && previewImages.brown.complete && previewImages.brown.naturalWidth > 0) {
         const ctxBr = cBr.getContext('2d');
         ctxBr.imageSmoothingEnabled = false;
         ctxBr.clearRect(0, 0, cBr.width, cBr.height);
         const frame = Math.floor(time * 7.2) % 6;
-        const scale = 1.35;
-        const dx = Math.round((cBr.width - 69 * scale) / 2);
-        const dy = Math.round(cBr.height - 40 * scale);
-        ctxBr.drawImage(previewImages.brown, frame * 69, 0, 69, 44, dx, dy, 69 * scale, 44 * scale);
+        // Brown frame is 69x44, scale to fit nicely in 140x120
+        const scale = 1.6;
+        const spriteW = 69 * scale;
+        const spriteH = 44 * scale;
+        // Center horizontally, position at bottom
+        const dx = Math.round((cBr.width - spriteW) / 2);
+        const dy = Math.round(cBr.height - spriteH - 5);
+        ctxBr.drawImage(previewImages.brown, frame * 69, 0, 69, 44, dx, dy, spriteW, spriteH);
     }
 }
 

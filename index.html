@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles/main.css?v=20261004_1">
+    <link rel="stylesheet" href="styles/main.css?v=20261005_1">
     <!-- Favicon - stylized sword -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230a0808' width='100' height='100'/><polygon fill='%23c9a227' points='50,5 58,35 55,40 58,45 50,90 42,45 45,40 42,35' stroke='%238b2020' stroke-width='2'/><rect fill='%234a4540' x='38' y='42' width='24' height='6'/></svg>">
 </head>
@@ -81,56 +81,131 @@
                 </div>
             </div>
 
-            <!-- ==================== CHARACTER SELECT MODAL (SETTINGS STYLE - MINIMAL RED) ==================== -->
+            <!-- ==================== CHARACTER SELECT (EPIC DARK FANTASY) ==================== -->
             <div id="char-select-screen" class="screen hidden">
-                <h2 class="char-modal-title">CHOOSE HERO</h2>
-                <div class="char-modal-box">
-                    <!-- Hero 1: Sir Roland -->
-                    <div class="hero-modal-row" data-char="knight">
-                        <div class="hero-modal-canvas-frame">
-                            <canvas id="hero-preview-knight" class="hero-preview-canvas" width="60" height="54"></canvas>
-                        </div>
-                        <div class="hero-modal-info">
-                            <div class="hero-modal-header">
-                                <span class="hero-modal-name">Sir Roland</span>
-                                <span class="hero-modal-badge">HEAVY</span>
+                <div class="char-select-bg"></div>
+                <div class="char-select-content">
+                    <h2 class="char-select-title">CHOOSE YOUR CHAMPION</h2>
+                    <div class="hero-showcase">
+                        <!-- Sir Roland -->
+                        <div class="hero-card" data-char="knight">
+                            <div class="hero-card-glow knight-glow"></div>
+                            <div class="hero-card-portrait">
+                                <canvas id="hero-preview-knight" width="140" height="120"></canvas>
+                                <div class="hero-card-frame knight-frame"></div>
                             </div>
-                            <span class="hero-modal-desc">The Iron Bulwark • High Defense & Greatsword</span>
+                            <div class="hero-card-body">
+                                <span class="hero-card-class knight">HEAVY TANK</span>
+                                <h3 class="hero-card-name">SIR ROLAND</h3>
+                                <p class="hero-card-title-text">The Iron Bulwark</p>
+                                <p class="hero-card-trait">Heavy Armor: +50% Max HP & heavy poise. Cannot climb ladders.</p>
+                                <div class="hero-card-stats">
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">HP</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill hp-fill" style="width: 100%"></div></div>
+                                        <span class="hero-stat-value">150</span>
+                                    </div>
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">ATK</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill atk-fill" style="width: 87%"></div></div>
+                                        <span class="hero-stat-value">×1.30</span>
+                                    </div>
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">SPD</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill spd-fill" style="width: 80%"></div></div>
+                                        <span class="hero-stat-value">275</span>
+                                    </div>
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">DEF</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill def-fill" style="width: 100%"></div></div>
+                                        <span class="hero-stat-value">S</span>
+                                    </div>
+                                </div>
+                                <button class="hero-select-btn knight-btn" data-char="knight">SELECT</button>
+                            </div>
                         </div>
-                        <button class="btn-select-hero" data-char="knight" type="button">SELECT</button>
-                    </div>
 
-                    <!-- Hero 2: Lady Sylvia -->
-                    <div class="hero-modal-row" data-char="blonde">
-                        <div class="hero-modal-canvas-frame">
-                            <canvas id="hero-preview-blonde" class="hero-preview-canvas" width="60" height="54"></canvas>
-                        </div>
-                        <div class="hero-modal-info">
-                            <div class="hero-modal-header">
-                                <span class="hero-modal-name">Lady Sylvia</span>
-                                <span class="hero-modal-badge gold">VALKYRIE</span>
+                        <!-- Lady Sylvia -->
+                        <div class="hero-card" data-char="blonde">
+                            <div class="hero-card-glow blonde-glow"></div>
+                            <div class="hero-card-portrait">
+                                <canvas id="hero-preview-blonde" width="140" height="120"></canvas>
+                                <div class="hero-card-frame blonde-frame"></div>
                             </div>
-                            <span class="hero-modal-desc">The Radiant Blade • Agile Climber & Lifesteal</span>
+                            <div class="hero-card-body">
+                                <span class="hero-card-class blonde">VALKYRIE</span>
+                                <h3 class="hero-card-name">LADY SYLVIA</h3>
+                                <p class="hero-card-title-text">The Radiant Blade</p>
+                                <p class="hero-card-trait">Sacred Agility: High speed. Can climb ladders! Hits restore HP on strike.</p>
+                                <div class="hero-card-stats">
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">HP</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill hp-fill" style="width: 67%"></div></div>
+                                        <span class="hero-stat-value">100</span>
+                                    </div>
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">ATK</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill atk-fill" style="width: 77%"></div></div>
+                                        <span class="hero-stat-value">×1.15</span>
+                                    </div>
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">SPD</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill spd-fill" style="width: 93%"></div></div>
+                                        <span class="hero-stat-value">320</span>
+                                    </div>
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">DEF</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill def-fill" style="width: 70%"></div></div>
+                                        <span class="hero-stat-value">B+</span>
+                                    </div>
+                                </div>
+                                <button class="hero-select-btn blonde-btn" data-char="blonde">SELECT</button>
+                            </div>
                         </div>
-                        <button class="btn-select-hero" data-char="blonde" type="button">SELECT</button>
-                    </div>
 
-                    <!-- Hero 3: Kaelen -->
-                    <div class="hero-modal-row" data-char="brown">
-                        <div class="hero-modal-canvas-frame">
-                            <canvas id="hero-preview-brown" class="hero-preview-canvas" width="60" height="54"></canvas>
-                        </div>
-                        <div class="hero-modal-info">
-                            <div class="hero-modal-header">
-                                <span class="hero-modal-name">Kaelen</span>
-                                <span class="hero-modal-badge purple">ASSASSIN</span>
+                        <!-- Kaelen -->
+                        <div class="hero-card" data-char="brown">
+                            <div class="hero-card-glow brown-glow"></div>
+                            <div class="hero-card-portrait">
+                                <canvas id="hero-preview-brown" width="140" height="120"></canvas>
+                                <div class="hero-card-frame brown-frame"></div>
                             </div>
-                            <span class="hero-modal-desc">The Shadow Blade • Climber & Double Jump</span>
+                            <div class="hero-card-body">
+                                <span class="hero-card-class brown">ASSASSIN</span>
+                                <h3 class="hero-card-name">KAELEN</h3>
+                                <p class="hero-card-title-text">The Shadow Blade</p>
+                                <p class="hero-card-trait">Phantom Walker: Double jump! Can climb ladders! Dodging leaves a shadow clone.</p>
+                                <div class="hero-card-stats">
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">HP</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill hp-fill" style="width: 57%"></div></div>
+                                        <span class="hero-stat-value">85</span>
+                                    </div>
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">ATK</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill atk-fill" style="width: 83%"></div></div>
+                                        <span class="hero-stat-value">×1.25</span>
+                                    </div>
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">SPD</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill spd-fill" style="width: 100%"></div></div>
+                                        <span class="hero-stat-value">345</span>
+                                    </div>
+                                    <div class="hero-stat-row">
+                                        <span class="hero-stat-label">DEF</span>
+                                        <div class="hero-stat-bar"><div class="hero-stat-fill def-fill" style="width: 60%"></div></div>
+                                        <span class="hero-stat-value">B</span>
+                                    </div>
+                                </div>
+                                <button class="hero-select-btn brown-btn" data-char="brown">SELECT</button>
+                            </div>
                         </div>
-                        <button class="btn-select-hero" data-char="brown" type="button">SELECT</button>
                     </div>
+                    <button id="btn-char-select-back" class="char-back-btn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        BACK TO MENU
+                    </button>
                 </div>
-                <button id="btn-char-select-back" class="menu-btn secondary back-btn" type="button">BACK</button>
             </div>
 
             <!-- ==================== SETTINGS MENU ==================== -->
@@ -276,6 +351,6 @@
         <div id="vfx-layer"></div>
     </div>
 
-    <script type="module" src="src/main.js?v=20261004_1"></script>
+    <script type="module" src="src/main.js?v=20261005_2"></script>
 </body>
 </html>

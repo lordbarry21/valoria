@@ -26,7 +26,7 @@ export class CemeteryHillsMenuRenderer {
                 id: 'knight',
                 name: 'SIR ROLAND',
                 title: 'THE IRON BULWARK',
-                scale: 2.15,
+                scale: 2.25,
                 frameW: 120,
                 frameH: 80,
                 totalFrames: 10,
@@ -41,7 +41,7 @@ export class CemeteryHillsMenuRenderer {
                 id: 'blonde',
                 name: 'LADY SYLVIA',
                 title: 'THE RADIANT BLADE',
-                scale: 2.35,
+                scale: 2.45,
                 frameW: 69,
                 frameH: 44,
                 totalFrames: 6,
@@ -56,7 +56,7 @@ export class CemeteryHillsMenuRenderer {
                 id: 'brown',
                 name: 'KAELEN',
                 title: 'THE SHADOW BLADE',
-                scale: 2.35,
+                scale: 2.45,
                 frameW: 69,
                 frameH: 44,
                 totalFrames: 6,
@@ -95,35 +95,11 @@ export class CemeteryHillsMenuRenderer {
         }
     }
 
-    handleMouseMove(mouseX, mouseY) {
-        if (!this.heroHitbox) {
-            this.isHeroHovered = false;
-            return { cursor: 'default', changed: false };
-        }
-
-        const hovered = (
-            mouseX >= this.heroHitbox.x &&
-            mouseX <= this.heroHitbox.x + this.heroHitbox.w &&
-            mouseY >= this.heroHitbox.y &&
-            mouseY <= this.heroHitbox.y + this.heroHitbox.h
-        );
-
-        const changed = this.isHeroHovered !== hovered;
-        this.isHeroHovered = hovered;
-        return { cursor: hovered ? 'pointer' : 'default', changed };
+    handleMouseMove() {
+        return { cursor: 'default', changed: false };
     }
 
-    handleClick(mouseX, mouseY) {
-        if (
-            this.heroHitbox &&
-            mouseX >= this.heroHitbox.x &&
-            mouseX <= this.heroHitbox.x + this.heroHitbox.w &&
-            mouseY >= this.heroHitbox.y &&
-            mouseY <= this.heroHitbox.y + this.heroHitbox.h
-        ) {
-            this.onHeroClick?.(this.selectedHeroId);
-            return this.selectedHeroId;
-        }
+    handleClick() {
         return null;
     }
 
@@ -133,10 +109,10 @@ export class CemeteryHillsMenuRenderer {
         // 1. Draw Full Background Scene from Gemini_Generated_Image_h3361hh3361hh336.jpg
         const { renderX, renderY, renderW, renderH } = this.renderBackground(ctx, width, height);
 
-        // 2. Position the Hero squarely on the flat Cliff Plateau (shifted slightly right of center)
-        const heroX = Math.round(renderX + renderW * 0.536);
-        // The cliff top in the generated image is at 58.2% of its height
-        const heroY = Math.round(renderY + renderH * 0.582);
+        // 2. Position the Hero in the foreground grassy expanse (matching user arrow location)
+        const heroX = Math.round(renderX + renderW * 0.50);
+        // The foreground grassy ridge in the background image is at 81.8% of its height
+        const heroY = Math.round(renderY + renderH * 0.818);
 
         // 3. Draw The Single Selected Champion & Nameplate
         this.renderSingleHero(ctx, heroX, heroY);
@@ -185,14 +161,6 @@ export class CemeteryHillsMenuRenderer {
         const drawX = Math.floor(posX - hero.anchorOffsetX * hero.scale);
         const drawY = Math.floor(posY - hero.anchorOffsetY * hero.scale);
 
-        // Precise clickable hitbox over champion's body
-        const boxW = 84;
-        const boxH = Math.round(hero.headOffsetY + 10);
-        const boxX = Math.floor(posX - boxW / 2);
-        const boxY = Math.floor(posY - boxH);
-
-        this.heroHitbox = { x: boxX, y: boxY, w: boxW, h: boxH };
-
         // 1. Contact Ground Shadow on cliff grass
         ctx.save();
         ctx.fillStyle = 'rgba(10, 8, 12, 0.75)';
@@ -230,10 +198,6 @@ export class CemeteryHillsMenuRenderer {
             const srcX = frameIndex * hero.frameW;
             const srcY = 0;
 
-            if (this.isHeroHovered) {
-                ctx.filter = 'brightness(1.18) drop-shadow(0 0 8px rgba(244, 208, 63, 0.55))';
-            }
-
             ctx.drawImage(
                 sprite,
                 srcX, srcY, hero.frameW, hero.frameH,
@@ -267,10 +231,10 @@ export class CemeteryHillsMenuRenderer {
         ctx.fill();
 
         // Subtle elegant border
-        ctx.strokeStyle = this.isHeroHovered ? '#f4d03f' : 'rgba(244, 208, 63, 0.4)';
+        ctx.strokeStyle = 'rgba(244, 208, 63, 0.45)';
         ctx.lineWidth = 1;
-        ctx.shadowColor = this.isHeroHovered ? '#f4d03f' : 'rgba(0, 0, 0, 0.8)';
-        ctx.shadowBlur = this.isHeroHovered ? 8 : 4;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
         ctx.stroke();
 
         // Centered Hero Name (crisp, zero level tag)
@@ -283,7 +247,7 @@ export class CemeteryHillsMenuRenderer {
         ctx.fillText(nameText, x, bannerY + bannerH / 2);
 
         // Small downward pointer triangle touching right near the head
-        ctx.fillStyle = this.isHeroHovered ? '#f4d03f' : 'rgba(244, 208, 63, 0.55)';
+        ctx.fillStyle = 'rgba(244, 208, 63, 0.55)';
         ctx.beginPath();
         ctx.moveTo(x - 4, bannerY + bannerH);
         ctx.lineTo(x + 4, bannerY + bannerH);

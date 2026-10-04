@@ -1298,38 +1298,402 @@ body {
     color: #a85050;
 }
 
-.hero-modal-desc {
+/* ============================================================================
+   CHARACTER SELECT - EPIC DARK FANTASY SHOWCASE
+   ============================================================================ */
+
+#char-select-screen {
+    background: linear-gradient(180deg, #0a0708 0%, #12100e 50%, #1a1512 100%);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+.char-select-bg {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 80% 50% at 50% 100%, rgba(139, 32, 32, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 20% 50%, rgba(93, 173, 226, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 80% 50%, rgba(244, 208, 63, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.char-select-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    padding: 20px;
+}
+
+.char-select-title {
+    font-family: var(--font-display);
+    font-size: 2.2rem;
+    font-weight: 900;
+    letter-spacing: 0.25em;
+    color: #f7dc6f;
+    text-transform: uppercase;
+    text-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.9),
+        0 0 40px rgba(247, 220, 111, 0.3),
+        0 0 80px rgba(201, 162, 39, 0.2);
+    margin: 0;
+    animation: titlePulse 3s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+    0%, 100% { text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 40px rgba(247, 220, 111, 0.3), 0 0 80px rgba(201, 162, 39, 0.2); }
+    50% { text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 60px rgba(247, 220, 111, 0.5), 0 0 100px rgba(201, 162, 39, 0.3); }
+}
+
+/* Hero Showcase - 3 Cards */
+.hero-showcase {
+    display: flex;
+    gap: 24px;
+    perspective: 1000px;
+}
+
+/* Hero Card */
+.hero-card {
+    position: relative;
+    width: 280px;
+    background: linear-gradient(180deg, rgba(26, 22, 18, 0.95) 0%, rgba(18, 14, 12, 0.98) 100%);
+    border: 2px solid #3a3228;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 215, 0, 0.1);
+}
+
+.hero-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.hero-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: #5a4a30;
+    box-shadow:
+        0 16px 48px rgba(0, 0, 0, 0.7),
+        0 0 30px rgba(201, 162, 39, 0.15),
+        inset 0 1px 0 rgba(255, 215, 0, 0.2);
+}
+
+/* Theme Glows */
+.hero-card-glow {
+    position: absolute;
+    top: -50%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200%;
+    height: 100%;
+    opacity: 0.15;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.hero-card:hover .hero-card-glow {
+    opacity: 0.25;
+}
+
+.knight-glow {
+    background: radial-gradient(ellipse at center, rgba(93, 173, 226, 0.8) 0%, transparent 70%);
+}
+
+.blonde-glow {
+    background: radial-gradient(ellipse at center, rgba(244, 208, 63, 0.8) 0%, transparent 70%);
+}
+
+.brown-glow {
+    background: radial-gradient(ellipse at center, rgba(175, 122, 197, 0.8) 0%, transparent 70%);
+}
+
+/* Portrait Area */
+.hero-card-portrait {
+    position: relative;
+    height: 140px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: linear-gradient(180deg, rgba(10, 8, 6, 0.8) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(90, 74, 48, 0.3);
+}
+
+.hero-card-portrait canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    position: relative;
+    z-index: 2;
+}
+
+.hero-card-frame {
+    position: absolute;
+    inset: 8px;
+    border: 1px solid rgba(90, 74, 48, 0.4);
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+.knight-frame {
+    border-color: rgba(93, 173, 226, 0.4);
+    box-shadow: inset 0 0 20px rgba(93, 173, 226, 0.1);
+}
+
+.blonde-frame {
+    border-color: rgba(244, 208, 63, 0.4);
+    box-shadow: inset 0 0 20px rgba(244, 208, 63, 0.1);
+}
+
+.brown-frame {
+    border-color: rgba(175, 122, 197, 0.4);
+    box-shadow: inset 0 0 20px rgba(175, 122, 197, 0.1);
+}
+
+/* Card Body */
+.hero-card-body {
+    position: relative;
+    z-index: 2;
+    padding: 16px 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hero-card-class {
+    display: inline-block;
+    padding: 3px 10px;
+    font-family: var(--font-display);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    border-radius: 3px;
+    width: fit-content;
+}
+
+.hero-card-class.knight {
+    background: rgba(93, 173, 226, 0.2);
+    border: 1px solid rgba(93, 173, 226, 0.4);
+    color: #5dade2;
+}
+
+.hero-card-class.blonde {
+    background: rgba(244, 208, 63, 0.2);
+    border: 1px solid rgba(244, 208, 63, 0.4);
+    color: #f4d03f;
+}
+
+.hero-card-class.brown {
+    background: rgba(175, 122, 197, 0.2);
+    border: 1px solid rgba(175, 122, 197, 0.4);
+    color: #af7ac5;
+}
+
+.hero-card-name {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    color: #f7dc6f;
+    margin: 0;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.hero-card-title-text {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-style: italic;
+    color: #a6acaf;
+    margin: -4px 0 0;
+    letter-spacing: 0.05em;
+}
+
+.hero-card-trait {
     font-family: var(--font-ui);
     font-size: 0.72rem;
-    color: var(--color-text-dim);
-    line-height: 1.25;
+    color: #706858;
+    line-height: 1.4;
+    margin: 4px 0;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    border-left: 2px solid rgba(90, 74, 48, 0.5);
 }
 
-.btn-select-hero {
-    padding: 7px 16px;
+/* Stats Display */
+.hero-card-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 8px 0;
+}
+
+.hero-stat-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hero-stat-label {
     font-family: var(--font-display);
-    font-size: 0.68rem;
-    font-weight: 700;
+    font-size: 9px;
+    font-weight: 600;
     letter-spacing: 0.1em;
-    color: var(--color-text-primary);
-    background: var(--color-iron);
-    border: 1px solid var(--color-steel);
+    color: #706858;
+    width: 28px;
+}
+
+.hero-stat-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid rgba(60, 50, 40, 0.5);
+}
+
+.hero-stat-fill {
+    height: 100%;
     border-radius: 2px;
+    transition: width 0.5s ease-out;
+}
+
+.hp-fill {
+    background: linear-gradient(90deg, #8b2020 0%, #e74c3c 100%);
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
+}
+
+.atk-fill {
+    background: linear-gradient(90deg, #8b6914 0%, #f39c12 100%);
+    box-shadow: 0 0 8px rgba(243, 156, 18, 0.5);
+}
+
+.spd-fill {
+    background: linear-gradient(90deg, #1a5276 0%, #3498db 100%);
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+}
+
+.def-fill {
+    background: linear-gradient(90deg, #7d6608 0%, #f1c40f 100%);
+    box-shadow: 0 0 8px rgba(241, 196, 15, 0.5);
+}
+
+.hero-stat-value {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: #c9a227;
+    width: 40px;
+    text-align: right;
+}
+
+/* Select Button */
+.hero-select-btn {
+    margin-top: 8px;
+    padding: 12px 24px;
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #e8e4e0;
+    background: linear-gradient(180deg, #3a3228 0%, #2a2218 100%);
+    border: 2px solid #5a4a30;
+    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.15s ease;
-    flex-shrink: 0;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.btn-select-hero:hover {
-    background: var(--color-blood);
-    border-color: var(--color-crimson);
-    color: #fff;
+.hero-select-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
-.hero-modal-row.selected .btn-select-hero {
-    background: var(--color-blood);
-    border-color: var(--color-crimson);
-    color: #fff;
+.hero-select-btn:active {
+    transform: translateY(0);
+}
+
+.knight-btn {
+    border-color: rgba(93, 173, 226, 0.5);
+}
+
+.knight-btn:hover {
+    background: linear-gradient(180deg, rgba(93, 173, 226, 0.3) 0%, rgba(93, 173, 226, 0.15) 100%);
+    border-color: #5dade2;
+    color: #5dade2;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(93, 173, 226, 0.3);
+}
+
+.blonde-btn {
+    border-color: rgba(244, 208, 63, 0.5);
+}
+
+.blonde-btn:hover {
+    background: linear-gradient(180deg, rgba(244, 208, 63, 0.3) 0%, rgba(244, 208, 63, 0.15) 100%);
+    border-color: #f4d03f;
+    color: #f4d03f;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(244, 208, 63, 0.3);
+}
+
+.brown-btn {
+    border-color: rgba(175, 122, 197, 0.5);
+}
+
+.brown-btn:hover {
+    background: linear-gradient(180deg, rgba(175, 122, 197, 0.3) 0%, rgba(175, 122, 197, 0.15) 100%);
+    border-color: #af7ac5;
+    color: #af7ac5;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(175, 122, 197, 0.3);
+}
+
+/* Back Button */
+.char-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 28px;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #a09890;
+    background: transparent;
+    border: 1px solid #3a3228;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.char-back-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+}
+
+.char-back-btn:hover {
+    color: #f7dc6f;
+    border-color: rgba(247, 220, 111, 0.5);
+    background: rgba(247, 220, 111, 0.05);
 }
 
 /* ============================================================================
