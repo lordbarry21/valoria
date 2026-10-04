@@ -31,9 +31,9 @@ export class CemeteryHillsMenuRenderer {
                 frameH: 80,
                 totalFrames: 10,
                 fps: 10,
-                anchorOffsetX: 60,
-                anchorOffsetY: 72,
-                headOffsetY: 68,
+                anchorOffsetX: 55, // True visual center of 120x80 frame (bbox: 44..65 -> 54.5)
+                anchorOffsetY: 78, // Boot soles touch ground cleanly at frame bottom (bbox: 80)
+                headOffsetY: 76,   // Exact helmet top relative to feet
                 themeColor: '#5dade2',
                 glowColor: 'rgba(93, 173, 226, 0.45)',
             },
@@ -46,9 +46,9 @@ export class CemeteryHillsMenuRenderer {
                 frameH: 44,
                 totalFrames: 6,
                 fps: 7.2, // Slowed down by 10% for natural breathing motion
-                anchorOffsetX: 35,
-                anchorOffsetY: 38,
-                headOffsetY: 66,
+                anchorOffsetX: 27, // True visual center of 69x44 frame (bbox: 18..36 -> 27)
+                anchorOffsetY: 43, // Boot soles touch ground cleanly at frame bottom (bbox: 43)
+                headOffsetY: 77,   // Exact hair top relative to feet
                 themeColor: '#f4d03f',
                 glowColor: 'rgba(244, 208, 63, 0.55)',
             },
@@ -61,9 +61,9 @@ export class CemeteryHillsMenuRenderer {
                 frameH: 44,
                 totalFrames: 6,
                 fps: 7.2, // Slowed down by 10% for natural breathing motion
-                anchorOffsetX: 35,
-                anchorOffsetY: 38,
-                headOffsetY: 66,
+                anchorOffsetX: 27, // True visual center of 69x44 frame (bbox: 18..36 -> 27)
+                anchorOffsetY: 43, // Boot soles touch ground cleanly at frame bottom (bbox: 43)
+                headOffsetY: 77,   // Exact hair top relative to feet
                 themeColor: '#af7ac5',
                 glowColor: 'rgba(175, 122, 197, 0.45)',
             },
@@ -133,8 +133,8 @@ export class CemeteryHillsMenuRenderer {
         // 1. Draw Full Background Scene from Gemini_Generated_Image_h3361hh3361hh336.jpg
         const { renderX, renderY, renderW, renderH } = this.renderBackground(ctx, width, height);
 
-        // 2. Position the Hero Dead Center horizontally on the Cliff Plateau
-        const heroX = Math.round(width / 2);
+        // 2. Position the Hero squarely on the flat Cliff Plateau (shifted slightly right of center)
+        const heroX = Math.round(renderX + renderW * 0.536);
         // The cliff top in the generated image is at 58.2% of its height
         const heroY = Math.round(renderY + renderH * 0.582);
 

@@ -43,7 +43,7 @@ import { EnemyManager } from './enemies/EnemyManager.js';
 import { CombatSystem } from './combat/CombatSystem.js';
 import { VFXManager } from './effects/VFXManager.js';
 import { UIManager } from './ui/UIManager.js';
-import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js';
+import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js?v=20261004_1';
 
 // Global references
 export let canvas, ctx;
