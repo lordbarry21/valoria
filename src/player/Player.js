@@ -1256,8 +1256,8 @@ export class Player {
         if (state === 'Walk' || state === 'Run') {
             return { row: 1, col: Math.floor(this.animTime * 12) % 6 };
         }
-        // Idle
-        return { row: 0, col: Math.floor(this.animTime * 8) % 6 };
+        // Idle (slowed by 10% for graceful breathing motion)
+        return { row: 0, col: Math.floor(this.animTime * 7.2) % 6 };
     }
 
     drawRageAura(ctx) {

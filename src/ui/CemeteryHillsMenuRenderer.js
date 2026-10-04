@@ -1,22 +1,16 @@
 /**
  * VALORIA - CemeteryHills Menu Scene Renderer
- * Live pixel-art interactive main menu featuring the CemeteryHills parallax environment,
- * 3 idle playable champions on the terrain, floating nameplates, and atmospheric dark fantasy VFX.
+ * Live interactive main menu using Gemini_Generated_Image_h3361hh3361hh336.jpg as the backdrop:
+ * - A single champion standing exactly in the center on the cliff plateau
+ * - Nameplate positioned tightly and directly above the hero's head (matching reference)
+ * - 10% slowed female idle animation
+ * - Subtle ambient fireflies and clean edge vignette
  */
 
 export class CemeteryHillsMenuRenderer {
     constructor() {
-        this.skyImg = new Image();
-        this.skyImg.src = 'CemeteryHills/Pack/Background/Sky_Background.png';
-
-        this.mountainsImg = new Image();
-        this.mountainsImg.src = 'CemeteryHills/Pack/Background/Mountains_Background.png';
-
-        this.midgroundImg = new Image();
-        this.midgroundImg.src = 'CemeteryHills/Pack/Background/Midground_Sample.png';
-
-        this.sheetImg = new Image();
-        this.sheetImg.src = 'CemeteryHills/Pack/CemeteryHills_Sheet.png';
+        this.bgImg = new Image();
+        this.bgImg.src = 'Gemini_Generated_Image_h3361hh3361hh336.jpg';
 
         this.heroSprites = {
             knight: new Image(),
@@ -32,15 +26,14 @@ export class CemeteryHillsMenuRenderer {
                 id: 'knight',
                 name: 'SIR ROLAND',
                 title: 'THE IRON BULWARK',
-                classLabel: 'Heavy Knight',
-                ratioX: 0.31,
-                scale: 2.1,
+                scale: 2.15,
                 frameW: 120,
                 frameH: 80,
                 totalFrames: 10,
                 fps: 10,
                 anchorOffsetX: 60,
                 anchorOffsetY: 72,
+                headOffsetY: 68,
                 themeColor: '#5dade2',
                 glowColor: 'rgba(93, 173, 226, 0.45)',
             },
@@ -48,15 +41,14 @@ export class CemeteryHillsMenuRenderer {
                 id: 'blonde',
                 name: 'LADY SYLVIA',
                 title: 'THE RADIANT BLADE',
-                classLabel: 'Radiant Valkyrie',
-                ratioX: 0.50,
-                scale: 2.3,
+                scale: 2.35,
                 frameW: 69,
                 frameH: 44,
                 totalFrames: 6,
-                fps: 8,
+                fps: 7.2, // Slowed down by 10% for natural breathing motion
                 anchorOffsetX: 35,
                 anchorOffsetY: 38,
+                headOffsetY: 66,
                 themeColor: '#f4d03f',
                 glowColor: 'rgba(244, 208, 63, 0.55)',
             },
@@ -64,37 +56,36 @@ export class CemeteryHillsMenuRenderer {
                 id: 'brown',
                 name: 'KAELEN',
                 title: 'THE SHADOW BLADE',
-                classLabel: 'Shadow Assassin',
-                ratioX: 0.69,
-                scale: 2.3,
+                scale: 2.35,
                 frameW: 69,
                 frameH: 44,
                 totalFrames: 6,
-                fps: 8,
+                fps: 7.2, // Slowed down by 10% for natural breathing motion
                 anchorOffsetX: 35,
                 anchorOffsetY: 38,
+                headOffsetY: 66,
                 themeColor: '#af7ac5',
                 glowColor: 'rgba(175, 122, 197, 0.45)',
             },
         ];
 
         this.selectedHeroId = 'knight';
-        this.hoveredHeroId = null;
-        this.heroHitboxes = [];
+        this.isHeroHovered = false;
+        this.heroHitbox = null;
         this.time = 0;
-        this.onSelectHero = null;
+        this.onHeroClick = null;
 
-        // Ambient cemetery fireflies & fog motes
-        this.motes = Array.from({ length: 42 }, () => ({
+        // Ambient green & gold fireflies drifting around the cliff (matching reference)
+        this.fireflies = Array.from({ length: 32 }, () => ({
             x: Math.random() * 1920,
             y: Math.random() * 1080,
-            radius: 1 + Math.random() * 2.2,
-            speedX: 12 + Math.random() * 18,
-            swayFreq: 0.8 + Math.random() * 1.5,
-            swayAmp: 15 + Math.random() * 20,
-            baseAlpha: 0.15 + Math.random() * 0.4,
+            radius: 1.2 + Math.random() * 1.8,
+            speedX: 8 + Math.random() * 14,
+            swayFreq: 0.6 + Math.random() * 1.2,
+            swayAmp: 10 + Math.random() * 16,
+            baseAlpha: 0.25 + Math.random() * 0.45,
             phase: Math.random() * Math.PI * 2,
-            isEmber: Math.random() > 0.6,
+            isGreen: Math.random() > 0.35,
         }));
     }
 
@@ -105,36 +96,33 @@ export class CemeteryHillsMenuRenderer {
     }
 
     handleMouseMove(mouseX, mouseY) {
-        let foundHover = null;
-        for (const box of this.heroHitboxes) {
-            if (
-                mouseX >= box.x &&
-                mouseX <= box.x + box.w &&
-                mouseY >= box.y &&
-                mouseY <= box.y + box.h
-            ) {
-                foundHover = box.id;
-                break;
-            }
+        if (!this.heroHitbox) {
+            this.isHeroHovered = false;
+            return { cursor: 'default', changed: false };
         }
 
-        const changed = this.hoveredHeroId !== foundHover;
-        this.hoveredHeroId = foundHover;
-        return { cursor: foundHover ? 'pointer' : 'default', changed };
+        const hovered = (
+            mouseX >= this.heroHitbox.x &&
+            mouseX <= this.heroHitbox.x + this.heroHitbox.w &&
+            mouseY >= this.heroHitbox.y &&
+            mouseY <= this.heroHitbox.y + this.heroHitbox.h
+        );
+
+        const changed = this.isHeroHovered !== hovered;
+        this.isHeroHovered = hovered;
+        return { cursor: hovered ? 'pointer' : 'default', changed };
     }
 
     handleClick(mouseX, mouseY) {
-        for (const box of this.heroHitboxes) {
-            if (
-                mouseX >= box.x &&
-                mouseX <= box.x + box.w &&
-                mouseY >= box.y &&
-                mouseY <= box.y + box.h
-            ) {
-                this.selectedHeroId = box.id;
-                this.onSelectHero?.(box.id);
-                return box.id;
-            }
+        if (
+            this.heroHitbox &&
+            mouseX >= this.heroHitbox.x &&
+            mouseX <= this.heroHitbox.x + this.heroHitbox.w &&
+            mouseY >= this.heroHitbox.y &&
+            mouseY <= this.heroHitbox.y + this.heroHitbox.h
+        ) {
+            this.onHeroClick?.(this.selectedHeroId);
+            return this.selectedHeroId;
         }
         return null;
     }
@@ -142,311 +130,192 @@ export class CemeteryHillsMenuRenderer {
     render(ctx, width, height, dt = 0.016) {
         this.time += dt;
 
-        // 1. Draw Parallax Background
-        this.renderBackgroundLayers(ctx, width, height);
+        // 1. Draw Full Background Scene from Gemini_Generated_Image_h3361hh3361hh336.jpg
+        const { renderX, renderY, renderW, renderH } = this.renderBackground(ctx, width, height);
 
-        // 2. Draw Cemetery Hills Terrain & Props
-        const groundY = Math.floor(height * 0.71);
-        this.renderTerrainAndProps(ctx, width, height, groundY);
+        // 2. Position the Hero Dead Center horizontally on the Cliff Plateau
+        const heroX = Math.round(width / 2);
+        // The cliff top in the generated image is at 58.2% of its height
+        const heroY = Math.round(renderY + renderH * 0.582);
 
-        // 3. Draw Idle Heroes & Selection Effects
-        this.renderHeroes(ctx, width, groundY);
+        // 3. Draw The Single Selected Champion & Nameplate
+        this.renderSingleHero(ctx, heroX, heroY);
 
-        // 4. Draw Ambient VFX (Fireflies & Fog)
-        this.renderAmbientMotes(ctx, width, height);
+        // 4. Draw Atmospheric Green/Gold Fireflies
+        this.renderFireflies(ctx, width, height);
 
-        // 5. Draw Atmospheric Edge Vignette
+        // 5. Cinematic Vignette
         this.renderVignette(ctx, width, height);
     }
 
-    renderBackgroundLayers(ctx, width, height) {
-        // Sky Background
-        if (this.skyImg.complete && this.skyImg.naturalWidth > 0) {
-            const skyW = this.skyImg.naturalWidth;
-            const skyH = this.skyImg.naturalHeight;
-            const scaleY = (height * 0.75) / skyH;
-            const renderW = skyW * scaleY;
-            const tilesNeeded = Math.ceil(width / renderW) + 1;
-            const offset = (this.time * 6) % renderW;
-
-            for (let i = 0; i < tilesNeeded; i++) {
-                ctx.drawImage(this.skyImg, i * renderW - offset, 0, renderW + 1, height * 0.75);
-            }
-        } else {
-            const skyGrad = ctx.createLinearGradient(0, 0, 0, height * 0.75);
-            skyGrad.addColorStop(0, '#0a0d18');
-            skyGrad.addColorStop(1, '#1b1b2f');
-            ctx.fillStyle = skyGrad;
-            ctx.fillRect(0, 0, width, height * 0.75);
-        }
-
-        // Mountain Background
-        if (this.mountainsImg.complete && this.mountainsImg.naturalWidth > 0) {
-            const mtnW = this.mountainsImg.naturalWidth;
-            const mtnH = this.mountainsImg.naturalHeight;
-            const scaleY = (height * 0.55) / mtnH;
-            const renderW = mtnW * scaleY;
-            const startY = height * 0.22;
-            const tilesNeeded = Math.ceil(width / renderW) + 1;
-            const offset = (this.time * 3) % renderW;
+    renderBackground(ctx, width, height) {
+        if (this.bgImg.complete && this.bgImg.naturalWidth > 0) {
+            const imgW = this.bgImg.naturalWidth;
+            const imgH = this.bgImg.naturalHeight;
+            // Cover fit to fill the canvas completely while maintaining aspect ratio
+            const scale = Math.max(width / imgW, height / imgH);
+            const renderW = Math.round(imgW * scale);
+            const renderH = Math.round(imgH * scale);
+            const renderX = Math.round((width - renderW) / 2);
+            const renderY = Math.round((height - renderH) / 2);
 
             ctx.save();
-            ctx.globalAlpha = 0.92;
-            for (let i = 0; i < tilesNeeded; i++) {
-                ctx.drawImage(this.mountainsImg, i * renderW - offset, startY, renderW + 1, height * 0.55);
-            }
+            ctx.drawImage(this.bgImg, renderX, renderY, renderW, renderH);
             ctx.restore();
+
+            return { renderX, renderY, renderW, renderH };
         }
 
-        // Midground Tree Silhouettes
-        if (this.midgroundImg.complete && this.midgroundImg.naturalWidth > 0) {
-            const midW = this.midgroundImg.naturalWidth;
-            const midH = this.midgroundImg.naturalHeight;
-            const scale = 2.4;
-            const renderW = midW * scale;
-            const renderH = midH * scale;
-            const startY = height * 0.71 - renderH + 24;
-            const tilesNeeded = Math.ceil(width / renderW) + 1;
-
-            ctx.save();
-            ctx.globalAlpha = 0.88;
-            for (let i = 0; i < tilesNeeded; i++) {
-                ctx.drawImage(this.midgroundImg, i * renderW, startY, renderW, renderH);
-            }
-            ctx.restore();
-        }
+        // Fallback atmospheric gradient if image still loading
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+        skyGrad.addColorStop(0, '#100c18');
+        skyGrad.addColorStop(0.5, '#281c2f');
+        skyGrad.addColorStop(1, '#0e0b12');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, width, height);
+        return { renderX: 0, renderY: 0, renderW: width, renderH: height };
     }
 
-    renderTerrainAndProps(ctx, width, height, groundY) {
+    renderSingleHero(ctx, posX, posY) {
+        const hero = this.heroes.find(h => h.id === this.selectedHeroId) || this.heroes[0];
+        const sprite = this.heroSprites[hero.id];
+
+        const renderW = hero.frameW * hero.scale;
+        const renderH = hero.frameH * hero.scale;
+        const drawX = Math.floor(posX - hero.anchorOffsetX * hero.scale);
+        const drawY = Math.floor(posY - hero.anchorOffsetY * hero.scale);
+
+        // Precise clickable hitbox over champion's body
+        const boxW = 84;
+        const boxH = Math.round(hero.headOffsetY + 10);
+        const boxX = Math.floor(posX - boxW / 2);
+        const boxY = Math.floor(posY - boxH);
+
+        this.heroHitbox = { x: boxX, y: boxY, w: boxW, h: boxH };
+
+        // 1. Contact Ground Shadow on cliff grass
         ctx.save();
-        ctx.imageSmoothingEnabled = false;
-
-        const tileScale = 2.5;
-        const tileSize = 16 * tileScale;
-
-        // Subterranean dark fill beneath ground line
-        const dirtGrad = ctx.createLinearGradient(0, groundY, 0, height);
-        dirtGrad.addColorStop(0, '#1a191c');
-        dirtGrad.addColorStop(0.3, '#100f13');
-        dirtGrad.addColorStop(1, '#08080a');
-        ctx.fillStyle = dirtGrad;
-        ctx.fillRect(0, groundY, width, height - groundY);
-
-        if (this.sheetImg.complete && this.sheetImg.naturalWidth > 0) {
-            // Draw surface grass tiles across horizon
-            const tileCols = Math.ceil(width / tileSize) + 1;
-            for (let col = 0; col < tileCols; col++) {
-                const srcCol = 1 + (col % 4);
-                ctx.drawImage(
-                    this.sheetImg,
-                    srcCol * 16, 0, 16, 16,
-                    col * tileSize, groundY - 6, tileSize, tileSize
-                );
-            }
-
-            // Draw Cemetery Props:
-            // 1. Twisted Gothic Tree on Far Left
-            ctx.drawImage(this.sheetImg, 320, 0, 96, 112, width * 0.08, groundY - 112 * 2.2 + 8, 96 * 2.2, 112 * 2.2);
-
-            // 2. Weathered Iron Fence Section Left
-            ctx.drawImage(this.sheetImg, 224, 96, 64, 32, width * 0.20, groundY - 32 * 2.0, 64 * 2.0, 32 * 2.0);
-
-            // 3. Tombstone 1 between Roland and Sylvia
-            ctx.drawImage(this.sheetImg, 192, 16, 32, 32, width * 0.40, groundY - 32 * 2.0 + 4, 32 * 2.0, 32 * 2.0);
-
-            // 4. Stone Cross between Sylvia and Kaelen
-            ctx.drawImage(this.sheetImg, 272, 32, 32, 32, width * 0.60, groundY - 32 * 2.0 + 4, 32 * 2.0, 32 * 2.0);
-
-            // 5. Weathered Iron Fence Section Right
-            ctx.drawImage(this.sheetImg, 224, 96, 64, 32, width * 0.79, groundY - 32 * 2.0, 64 * 2.0, 32 * 2.0);
-
-            // 6. Gothic Tree on Far Right
-            ctx.save();
-            ctx.scale(-1, 1);
-            ctx.drawImage(this.sheetImg, 320, 0, 96, 112, -(width * 0.94), groundY - 112 * 2.1 + 8, 96 * 2.1, 112 * 2.1);
-            ctx.restore();
-        }
-
+        ctx.fillStyle = 'rgba(10, 8, 12, 0.75)';
+        ctx.beginPath();
+        ctx.ellipse(posX, posY + 2, 38, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
-    }
 
-    renderHeroes(ctx, width, groundY) {
-        this.heroHitboxes = [];
-
-        for (const hero of this.heroes) {
-            const sprite = this.heroSprites[hero.id];
-            const isSelected = this.selectedHeroId === hero.id;
-            const isHovered = this.hoveredHeroId === hero.id;
-
-            const posX = Math.floor(width * hero.ratioX);
-            const posY = groundY;
-
-            const renderW = hero.frameW * hero.scale;
-            const renderH = hero.frameH * hero.scale;
-            const drawX = Math.floor(posX - hero.anchorOffsetX * hero.scale);
-            const drawY = Math.floor(posY - hero.anchorOffsetY * hero.scale);
-
-            // Interactive Hitbox (centered on the champion's standing body)
-            const boxW = Math.min(renderW * 0.65, 120);
-            const boxH = Math.min(renderH * 0.85, 140);
-            const boxX = posX - boxW / 2;
-            const boxY = posY - boxH;
-
-            this.heroHitboxes.push({
-                id: hero.id,
-                x: boxX,
-                y: boxY,
-                w: boxW,
-                h: boxH,
-            });
-
-            // 1. Ground Shadow
-            ctx.save();
-            ctx.fillStyle = 'rgba(5, 5, 8, 0.65)';
-            ctx.beginPath();
-            ctx.ellipse(posX, posY + 4, boxW * 0.55, 12, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-
-            // 2. Selection Ring / Halo under feet
-            if (isSelected) {
-                this.renderSelectionHalo(ctx, posX, posY, hero.themeColor, hero.glowColor);
-            }
-
-            // 3. Render Hero Idle Sprite
-            if (sprite.complete && sprite.naturalWidth > 0) {
-                ctx.save();
-                ctx.imageSmoothingEnabled = false;
-
-                const frameIndex = Math.floor(this.time * hero.fps) % hero.totalFrames;
-                const srcX = frameIndex * hero.frameW;
-                const srcY = 0;
-
-                // Subtle hover brightening
-                if (isHovered && !isSelected) {
-                    ctx.filter = 'brightness(1.15) drop-shadow(0 0 6px rgba(255, 255, 255, 0.4))';
-                }
-
-                ctx.drawImage(
-                    sprite,
-                    srcX, srcY, hero.frameW, hero.frameH,
-                    drawX, drawY, renderW, renderH
-                );
-                ctx.restore();
-            }
-
-            // 4. Floating Nameplate (Above Selected or Hovered Hero)
-            if (isSelected || isHovered) {
-                this.renderNameplate(ctx, posX, boxY - 14, hero, isSelected);
-            }
-        }
-    }
-
-    renderSelectionHalo(ctx, x, y, themeColor, glowColor) {
+        // 2. Subtle Elemental / Rune Halo at feet
         ctx.save();
-        const pulse = 0.8 + Math.sin(this.time * 3.5) * 0.2;
-
-        // Outer glow
-        const glowGrad = ctx.createRadialGradient(x, y + 2, 8, x, y + 2, 48 * pulse);
-        glowGrad.addColorStop(0, glowColor);
+        const pulse = 0.85 + Math.sin(this.time * 3) * 0.15;
+        const glowGrad = ctx.createRadialGradient(posX, posY + 2, 4, posX, posY + 2, 36 * pulse);
+        glowGrad.addColorStop(0, hero.glowColor);
         glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = glowGrad;
         ctx.beginPath();
-        ctx.ellipse(x, y + 2, 54 * pulse, 16 * pulse, 0, 0, Math.PI * 2);
+        ctx.ellipse(posX, posY + 2, 40 * pulse, 11 * pulse, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // Inner glowing ring
-        ctx.strokeStyle = themeColor;
-        ctx.lineWidth = 2;
-        ctx.shadowColor = themeColor;
-        ctx.shadowBlur = 10;
+        ctx.strokeStyle = hero.themeColor;
+        ctx.lineWidth = 1.4;
+        ctx.shadowColor = hero.themeColor;
+        ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.ellipse(x, y + 2, 38, 11, 0, 0, Math.PI * 2);
+        ctx.ellipse(posX, posY + 2, 28, 7, 0, 0, Math.PI * 2);
         ctx.stroke();
-
         ctx.restore();
+
+        // 3. Render Hero Idle Sprite (with 10% slowed female idle)
+        if (sprite.complete && sprite.naturalWidth > 0) {
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+
+            const frameIndex = Math.floor(this.time * hero.fps) % hero.totalFrames;
+            const srcX = frameIndex * hero.frameW;
+            const srcY = 0;
+
+            if (this.isHeroHovered) {
+                ctx.filter = 'brightness(1.18) drop-shadow(0 0 8px rgba(244, 208, 63, 0.55))';
+            }
+
+            ctx.drawImage(
+                sprite,
+                srcX, srcY, hero.frameW, hero.frameH,
+                drawX, drawY, renderW, renderH
+            );
+            ctx.restore();
+        }
+
+        // 4. Exact Nameplate Positioned Directly and Tightly Above the Hero's Head
+        // Arrow tip sits 8px directly above helmet/hair
+        const nameplateBottomY = posY - hero.headOffsetY - 10;
+        this.renderNameplate(ctx, posX, nameplateBottomY, hero);
     }
 
-    renderNameplate(ctx, x, y, hero, isSelected) {
+    renderNameplate(ctx, x, bottomY, hero) {
         ctx.save();
         const nameText = hero.name;
-        const titleText = hero.title;
 
         ctx.font = '700 13px Cinzel, serif';
         const nameMetrics = ctx.measureText(nameText);
-        ctx.font = '600 9px Cinzel, serif';
-        const titleMetrics = ctx.measureText(titleText);
+        const padX = 18;
+        const bannerW = Math.max(Math.round(nameMetrics.width + padX * 2), 104);
+        const bannerH = 26;
+        const bannerX = Math.round(x - bannerW / 2);
+        const bannerY = Math.round(bottomY - bannerH);
 
-        const bannerW = Math.max(nameMetrics.width, titleMetrics.width) + 36;
-        const bannerH = 42;
-        const bannerX = Math.floor(x - bannerW / 2);
-        const bannerY = Math.floor(y - bannerH);
-
-        // Pill / Parchment container background
-        ctx.fillStyle = 'rgba(15, 12, 16, 0.88)';
+        // Sleek minimalist dark pill matching reference [Image #1]
+        ctx.fillStyle = 'rgba(18, 14, 20, 0.82)';
         ctx.beginPath();
-        ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 8);
+        ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 4);
         ctx.fill();
 
-        // Dual metallic gold/theme border
-        ctx.strokeStyle = isSelected ? hero.themeColor : '#7d6608';
-        ctx.lineWidth = isSelected ? 1.8 : 1.2;
-        ctx.shadowColor = isSelected ? hero.themeColor : 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = isSelected ? 8 : 4;
+        // Subtle elegant border
+        ctx.strokeStyle = this.isHeroHovered ? '#f4d03f' : 'rgba(244, 208, 63, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.shadowColor = this.isHeroHovered ? '#f4d03f' : 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = this.isHeroHovered ? 8 : 4;
         ctx.stroke();
 
-        // Inner subtle border
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-        ctx.lineWidth = 1;
-        ctx.shadowBlur = 0;
-        ctx.strokeRect(bannerX + 2, bannerY + 2, bannerW - 4, bannerH - 4);
-
-        // Name text
+        // Centered Hero Name (crisp, zero level tag)
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = '700 13px Cinzel, serif';
-        ctx.fillStyle = isSelected ? '#f7dc6f' : '#eaeded';
+        ctx.font = '700 12px Cinzel, serif';
+        ctx.fillStyle = '#f7dc6f';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-        ctx.shadowBlur = 5;
-        ctx.fillText(nameText, x, bannerY + 16);
+        ctx.shadowBlur = 4;
+        ctx.fillText(nameText, x, bannerY + bannerH / 2);
 
-        // Title / Class text (strictly NO level indicator)
-        ctx.font = '600 9px Cinzel, serif';
-        ctx.fillStyle = isSelected ? hero.themeColor : '#a6acaf';
-        ctx.fillText(titleText, x, bannerY + 30);
-
-        // Downward Pointer Triangle
-        ctx.fillStyle = isSelected ? hero.themeColor : '#7d6608';
+        // Small downward pointer triangle touching right near the head
+        ctx.fillStyle = this.isHeroHovered ? '#f4d03f' : 'rgba(244, 208, 63, 0.55)';
         ctx.beginPath();
-        ctx.moveTo(x - 5, bannerY + bannerH);
-        ctx.lineTo(x + 5, bannerY + bannerH);
-        ctx.lineTo(x, bannerY + bannerH + 6);
+        ctx.moveTo(x - 4, bannerY + bannerH);
+        ctx.lineTo(x + 4, bannerY + bannerH);
+        ctx.lineTo(x, bannerY + bannerH + 4);
         ctx.closePath();
         ctx.fill();
 
         ctx.restore();
     }
 
-    renderAmbientMotes(ctx, width, height) {
+    renderFireflies(ctx, width, height) {
         ctx.save();
-        for (const m of this.motes) {
-            m.x += m.speedX * 0.016;
-            if (m.x > width + 40) {
-                m.x = -20;
-                m.y = Math.random() * height;
+        for (const f of this.fireflies) {
+            f.x += f.speedX * 0.016;
+            if (f.x > width + 30) {
+                f.x = -20;
+                f.y = Math.random() * height;
             }
 
-            const currentY = m.y + Math.sin(this.time * m.swayFreq + m.phase) * m.swayAmp;
-            const alpha = m.baseAlpha * (0.6 + Math.sin(this.time * 2 + m.phase) * 0.4);
+            const currentY = f.y + Math.sin(this.time * f.swayFreq + f.phase) * f.swayAmp;
+            const alpha = f.baseAlpha * (0.6 + Math.sin(this.time * 2.5 + f.phase) * 0.4);
 
-            ctx.fillStyle = m.isEmber
-                ? `rgba(230, 126, 34, ${alpha})`
-                : `rgba(174, 214, 241, ${alpha * 0.75})`;
-            ctx.shadowColor = m.isEmber ? '#e67e22' : '#aed6f1';
+            // Reference [Image #1] features bright lime-green floating motes
+            const color = f.isGreen
+                ? `rgba(74, 222, 128, ${alpha})`
+                : `rgba(250, 204, 21, ${alpha * 0.85})`;
+            ctx.fillStyle = color;
+            ctx.shadowColor = f.isGreen ? '#4ade80' : '#facc15';
             ctx.shadowBlur = 6;
 
             ctx.beginPath();
-            ctx.arc(m.x, currentY, m.radius, 0, Math.PI * 2);
+            ctx.arc(f.x, currentY, f.radius, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.restore();
@@ -455,12 +324,12 @@ export class CemeteryHillsMenuRenderer {
     renderVignette(ctx, width, height) {
         ctx.save();
         const vignette = ctx.createRadialGradient(
-            width / 2, height / 2, height * 0.35,
-            width / 2, height / 2, Math.max(width, height) * 0.75
+            width / 2, height / 2, height * 0.38,
+            width / 2, height / 2, Math.max(width, height) * 0.72
         );
         vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        vignette.addColorStop(0.7, 'rgba(5, 5, 8, 0.45)');
-        vignette.addColorStop(1, 'rgba(2, 2, 4, 0.88)');
+        vignette.addColorStop(0.7, 'rgba(4, 4, 6, 0.3)');
+        vignette.addColorStop(1, 'rgba(2, 2, 4, 0.75)');
 
         ctx.fillStyle = vignette;
         ctx.fillRect(0, 0, width, height);

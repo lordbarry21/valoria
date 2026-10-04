@@ -777,6 +777,10 @@ export class AudioManager {
         }
     }
 
+    playSound(soundName) {
+        return this.playSFX(soundName);
+    }
+
     playMusic(musicType) {
         if (!this.initialized) return;
 

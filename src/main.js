@@ -161,7 +161,7 @@ function setupUIHandlers() {
     // Start Game: launches battle directly with the currently selected champion
     const fsModal = document.getElementById('fullscreen-modal');
     document.getElementById('btn-start').addEventListener('click', () => {
-        audioManager.playSound('ui_click');
+        audioManager.playSFX('ui_click');
         player.setCharacter(selectedChampion);
         if (!document.fullscreenElement) {
             fsModal?.classList.remove('hidden');
@@ -185,30 +185,61 @@ function setupUIHandlers() {
         startGame();
     });
 
+    function updateSelectedHeroModalUI() {
+        document.querySelectorAll('.hero-modal-row').forEach(row => {
+            const isCurrent = row.dataset.char === selectedChampion;
+            row.classList.toggle('selected', isCurrent);
+            const btn = row.querySelector('.btn-select-hero');
+            if (btn) btn.textContent = isCurrent ? 'SELECTED' : 'SELECT';
+        });
+    }
+
+    // Modal Champion Selection (Red Minimalist Style)
+    document.querySelectorAll('.hero-modal-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+            const charId = row.dataset.char;
+            selectedChampion = charId;
+            cemeteryMenuRenderer.setSelectedHero(charId);
+            player.setCharacter(charId);
+            audioManager.playSFX('ui_select');
+            updateSelectedHeroModalUI();
+            showScreen('main-menu');
+        });
+    });
+
+    document.querySelectorAll('.btn-select-hero').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const charId = btn.dataset.char;
+            selectedChampion = charId;
+            cemeteryMenuRenderer.setSelectedHero(charId);
+            player.setCharacter(charId);
+            audioManager.playSFX('ui_select');
+            updateSelectedHeroModalUI();
+            showScreen('main-menu');
+        });
+    });
+
     // Circular Hero Select Button
     document.getElementById('btn-menu-heroes')?.addEventListener('click', () => {
-        audioManager.playSound('ui_click');
+        audioManager.playSFX('ui_click');
+        updateSelectedHeroModalUI();
         showScreen('char-select-screen');
     });
 
     document.getElementById('btn-char-select-back').addEventListener('click', () => {
-        audioManager.playSound('ui_click');
+        audioManager.playSFX('ui_click');
         showScreen('main-menu');
         cemeteryMenuRenderer.setSelectedHero(selectedChampion);
     });
 
-    // Direct Play buttons on each character card: One-click immediately starts game!
-    document.querySelectorAll('.btn-direct-play').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const charId = e.currentTarget.dataset.char;
-            selectedChampion = charId;
-            cemeteryMenuRenderer.setSelectedHero(charId);
-            player.setCharacter(charId);
-            startGame();
-        });
-    });
+    // Interactive Hero click on the cliff in CemeteryHills main menu
+    cemeteryMenuRenderer.onHeroClick = () => {
+        audioManager.playSFX('ui_click');
+        updateSelectedHeroModalUI();
+        showScreen('char-select-screen');
+    };
 
-    // Interactive Hero selection on CemeteryHills main menu
     const mainMenuEl = document.getElementById('main-menu');
     if (mainMenuEl) {
         mainMenuEl.addEventListener('mousemove', (e) => {
@@ -232,9 +263,9 @@ function setupUIHandlers() {
             const mouseY = (e.clientY - rect.top) * scaleY;
             const clickedHero = cemeteryMenuRenderer.handleClick(mouseX, mouseY);
             if (clickedHero) {
-                selectedChampion = clickedHero;
-                player.setCharacter(clickedHero);
-                audioManager.playSound('ui_select');
+                audioManager.playSFX('ui_click');
+                updateSelectedHeroModalUI();
+                showScreen('char-select-screen');
             }
         });
     }
@@ -460,35 +491,35 @@ function renderHeroPreviews(time) {
         ctxK.imageSmoothingEnabled = false;
         ctxK.clearRect(0, 0, cK.width, cK.height);
         const frame = Math.floor(time * 10) % 10;
-        const scale = 1.8;
-        const dx = 55 - 55 * scale;
-        const dy = 88 - 80 * scale;
+        const scale = 1.05;
+        const dx = Math.round((cK.width - 120 * scale) / 2);
+        const dy = Math.round(cK.height - 76 * scale);
         ctxK.drawImage(previewImages.knight, frame * 120, 0, 120, 80, dx, dy, 120 * scale, 80 * scale);
     }
 
-    // Blonde Valkyrie Preview
+    // Blonde Valkyrie Preview (slowed by 10% for natural breathing)
     const cB = document.getElementById('hero-preview-blonde');
     if (cB && previewImages.blonde.complete && previewImages.blonde.naturalWidth > 0) {
         const ctxB = cB.getContext('2d');
         ctxB.imageSmoothingEnabled = false;
         ctxB.clearRect(0, 0, cB.width, cB.height);
-        const frame = Math.floor(time * 8) % 6;
-        const scale = 2.0;
-        const dx = 55 - 27 * scale;
-        const dy = 88 - 43 * scale;
+        const frame = Math.floor(time * 7.2) % 6;
+        const scale = 1.35;
+        const dx = Math.round((cB.width - 69 * scale) / 2);
+        const dy = Math.round(cB.height - 40 * scale);
         ctxB.drawImage(previewImages.blonde, frame * 69, 0, 69, 44, dx, dy, 69 * scale, 44 * scale);
     }
 
-    // Brown Assassin Preview
+    // Brown Assassin Preview (slowed by 10% for natural breathing)
     const cBr = document.getElementById('hero-preview-brown');
     if (cBr && previewImages.brown.complete && previewImages.brown.naturalWidth > 0) {
         const ctxBr = cBr.getContext('2d');
         ctxBr.imageSmoothingEnabled = false;
         ctxBr.clearRect(0, 0, cBr.width, cBr.height);
-        const frame = Math.floor(time * 8) % 6;
-        const scale = 2.0;
-        const dx = 55 - 27 * scale;
-        const dy = 88 - 43 * scale;
+        const frame = Math.floor(time * 7.2) % 6;
+        const scale = 1.35;
+        const dx = Math.round((cBr.width - 69 * scale) / 2);
+        const dy = Math.round(cBr.height - 40 * scale);
         ctxBr.drawImage(previewImages.brown, frame * 69, 0, 69, 44, dx, dy, 69 * scale, 44 * scale);
     }
 }

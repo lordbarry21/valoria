@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles/main.css?v=7">
+    <link rel="stylesheet" href="styles/main.css?v=9">
     <!-- Favicon - stylized sword -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230a0808' width='100' height='100'/><polygon fill='%23c9a227' points='50,5 58,35 55,40 58,45 50,90 42,45 45,40 42,35' stroke='%238b2020' stroke-width='2'/><rect fill='%234a4540' x='38' y='42' width='24' height='6'/></svg>">
 </head>
@@ -25,17 +25,8 @@
                 <!-- Top-Left Branding -->
                 <header class="menu-brand-header">
                     <h1 class="game-title">VALORIA</h1>
-                    <div class="menu-subtitle-badge">
-                        <span class="badge-gem">◆</span>
-                        <span class="badge-text">CHRONICLES OF ASH & STEEL</span>
-                    </div>
+                    <span class="menu-subtitle">CHRONICLES OF ASH & STEEL</span>
                 </header>
-
-                <!-- Center Prompt -->
-                <div class="menu-hero-prompt" id="menu-hero-prompt">
-                    <span class="prompt-icon">⚔</span>
-                    <span class="prompt-text">CLICK A CHAMPION TO SELECT</span>
-                </div>
 
                 <!-- Bottom-Left Action Controls (No external logos, only Choose Hero & Settings) -->
                 <nav class="menu-bottom-left-cluster">
@@ -87,126 +78,56 @@
                 </div>
             </div>
 
-            <!-- ==================== CHARACTER SELECT ==================== -->
+            <!-- ==================== CHARACTER SELECT MODAL (SETTINGS STYLE - MINIMAL RED) ==================== -->
             <div id="char-select-screen" class="screen hidden">
-                <div class="char-select-header">
-                    <h2 class="char-select-title">CHOOSE YOUR CHAMPION</h2>
-                    <p class="char-select-subtitle">Select your hero and enter the dark arena</p>
-                </div>
-
-                <div class="char-cards-container">
-                    <!-- Hero 1: Sir Roland (Knight) -->
-                    <div class="char-card">
-                        <div class="char-card-badge">EASY</div>
-                        <div class="hero-canvas-frame">
-                            <canvas id="hero-preview-knight" class="hero-preview-canvas" width="110" height="96"></canvas>
+                <h2 class="char-modal-title">CHOOSE HERO</h2>
+                <div class="char-modal-box">
+                    <!-- Hero 1: Sir Roland -->
+                    <div class="hero-modal-row" data-char="knight">
+                        <div class="hero-modal-canvas-frame">
+                            <canvas id="hero-preview-knight" class="hero-preview-canvas" width="60" height="54"></canvas>
                         </div>
-                        <div class="char-info">
-                            <h3 class="char-name">Sir Roland</h3>
-                            <span class="char-title">The Iron Bulwark</span>
-                            <div class="char-stat-list">
-                                <div class="char-stat-row">
-                                    <span>HP</span>
-                                    <div class="stat-bar-mini"><div class="fill" style="width: 100%;"></div></div>
-                                    <span class="stat-val">150</span>
-                                </div>
-                                <div class="char-stat-row">
-                                    <span>DMG</span>
-                                    <div class="stat-bar-mini"><div class="fill" style="width: 80%;"></div></div>
-                                    <span class="stat-val">A+</span>
-                                </div>
-                                <div class="char-stat-row">
-                                    <span>SPD</span>
-                                    <div class="stat-bar-mini"><div class="fill" style="width: 60%;"></div></div>
-                                    <span class="stat-val">B-</span>
-                                </div>
+                        <div class="hero-modal-info">
+                            <div class="hero-modal-header">
+                                <span class="hero-modal-name">Sir Roland</span>
+                                <span class="hero-modal-badge">HEAVY</span>
                             </div>
-                            <div class="char-trait-badge heavy">Heavy Armor (Cannot Climb Ladders)</div>
-                            <div class="char-skills-preview">
-                                <div class="skill-mini"><b>[Q]</b> Valor Strike</div>
-                                <div class="skill-mini"><b>[E]</b> Iron Breaker</div>
-                                <div class="skill-mini ult"><b>[R]</b> Valoria Rage</div>
-                            </div>
+                            <span class="hero-modal-desc">The Iron Bulwark • High Defense & Greatsword</span>
                         </div>
-                        <button class="menu-btn btn-direct-play" data-char="knight" type="button">PLAY AS KNIGHT</button>
+                        <button class="btn-select-hero" data-char="knight" type="button">SELECT</button>
                     </div>
 
-                    <!-- Hero 2: Lady Sylvia (Valkyrie) -->
-                    <div class="char-card">
-                        <div class="char-card-badge gold">MEDIUM</div>
-                        <div class="hero-canvas-frame">
-                            <canvas id="hero-preview-blonde" class="hero-preview-canvas" width="110" height="96"></canvas>
+                    <!-- Hero 2: Lady Sylvia -->
+                    <div class="hero-modal-row" data-char="blonde">
+                        <div class="hero-modal-canvas-frame">
+                            <canvas id="hero-preview-blonde" class="hero-preview-canvas" width="60" height="54"></canvas>
                         </div>
-                        <div class="char-info">
-                            <h3 class="char-name">Lady Sylvia</h3>
-                            <span class="char-title">The Radiant Blade</span>
-                            <div class="char-stat-list">
-                                <div class="char-stat-row">
-                                    <span>HP</span>
-                                    <div class="stat-bar-mini"><div class="fill" style="width: 66%;"></div></div>
-                                    <span class="stat-val">100</span>
-                                </div>
-                                <div class="char-stat-row">
-                                    <span>DMG</span>
-                                    <div class="stat-bar-mini"><div class="fill" style="width: 90%;"></div></div>
-                                    <span class="stat-val">S</span>
-                                </div>
-                                <div class="char-stat-row">
-                                    <span>SPD</span>
-                                    <div class="stat-bar-mini"><div class="fill" style="width: 85%;"></div></div>
-                                    <span class="stat-val">A</span>
-                                </div>
+                        <div class="hero-modal-info">
+                            <div class="hero-modal-header">
+                                <span class="hero-modal-name">Lady Sylvia</span>
+                                <span class="hero-modal-badge gold">VALKYRIE</span>
                             </div>
-                            <div class="char-trait-badge climber">Can Climb Ladders & Heals on Hit</div>
-                            <div class="char-skills-preview">
-                                <div class="skill-mini"><b>[Q]</b> Solar Piercer</div>
-                                <div class="skill-mini"><b>[E]</b> Radiant Tempest</div>
-                                <div class="skill-mini ult"><b>[R]</b> Dawn Judgment</div>
-                            </div>
+                            <span class="hero-modal-desc">The Radiant Blade • Agile Climber & Lifesteal</span>
                         </div>
-                        <button class="menu-btn btn-direct-play" data-char="blonde" type="button">PLAY AS VALKYRIE</button>
+                        <button class="btn-select-hero" data-char="blonde" type="button">SELECT</button>
                     </div>
 
-                    <!-- Hero 3: Kaelen (Assassin) -->
-                    <div class="char-card">
-                        <div class="char-card-badge purple">HARD</div>
-                        <div class="hero-canvas-frame">
-                            <canvas id="hero-preview-brown" class="hero-preview-canvas" width="110" height="96"></canvas>
+                    <!-- Hero 3: Kaelen -->
+                    <div class="hero-modal-row" data-char="brown">
+                        <div class="hero-modal-canvas-frame">
+                            <canvas id="hero-preview-brown" class="hero-preview-canvas" width="60" height="54"></canvas>
                         </div>
-                        <div class="char-info">
-                            <h3 class="char-name">Kaelen</h3>
-                            <span class="char-title">The Shadow Blade</span>
-                            <div class="char-stat-list">
-                                <div class="char-stat-row">
-                                    <span>HP</span>
-                                    <div class="stat-bar-mini"><div class="fill" style="width: 55%;"></div></div>
-                                    <span class="stat-val">85</span>
-                                </div>
-                                <div class="char-stat-row">
-                                    <span>DMG</span>
-                                    <div class="stat-bar-mini"><div class="fill" style="width: 100%;"></div></div>
-                                    <span class="stat-val">S+</span>
-                                </div>
-                                <div class="char-stat-row">
-                                    <span>SPD</span>
-                                    <div class="stat-bar-mini"><div class="fill" style="width: 100%;"></div></div>
-                                    <span class="stat-val">S+</span>
-                                </div>
+                        <div class="hero-modal-info">
+                            <div class="hero-modal-header">
+                                <span class="hero-modal-name">Kaelen</span>
+                                <span class="hero-modal-badge purple">ASSASSIN</span>
                             </div>
-                            <div class="char-trait-badge climber">Can Climb Ladders & Double Jump</div>
-                            <div class="char-skills-preview">
-                                <div class="skill-mini"><b>[Q]</b> Phantom Blink</div>
-                                <div class="skill-mini"><b>[E]</b> Cyclone Blade</div>
-                                <div class="skill-mini ult"><b>[R]</b> Eclipse Execution</div>
-                            </div>
+                            <span class="hero-modal-desc">The Shadow Blade • Climber & Double Jump</span>
                         </div>
-                        <button class="menu-btn btn-direct-play" data-char="brown" type="button">PLAY AS ASSASSIN</button>
+                        <button class="btn-select-hero" data-char="brown" type="button">SELECT</button>
                     </div>
                 </div>
-
-                <div class="char-select-footer">
-                    <button id="btn-char-select-back" class="menu-btn secondary" type="button">BACK</button>
-                </div>
+                <button id="btn-char-select-back" class="menu-btn secondary back-btn" type="button">BACK</button>
             </div>
 
             <!-- ==================== SETTINGS MENU ==================== -->
