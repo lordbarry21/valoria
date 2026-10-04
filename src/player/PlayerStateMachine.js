@@ -10,11 +10,11 @@ const TRANSITIONS = {
     Jump: ['Fall', 'Land', 'Attack', 'SkillCast', 'Dodge', 'Hurt', 'Death', 'Climb'],
     Fall: ['Land', 'Attack', 'SkillCast', 'Dodge', 'Hurt', 'Death', 'Climb'],
     Land: ['Idle', 'Walk', 'Run', 'Jump', 'Attack', 'HeavyAttack', 'SkillCast', 'Dodge', 'Hurt', 'Death', 'Climb'],
-    Attack: ['Idle', 'Walk', 'Run', 'Jump', 'Fall', 'SkillCast', 'Dodge', 'Hurt', 'Death'],
+    Attack: ['Idle', 'Walk', 'Run', 'Jump', 'Fall', 'Attack', 'SkillCast', 'Dodge', 'Hurt', 'Death'],
     HeavyAttack: ['Idle', 'Walk', 'Attack', 'Hurt', 'Death'],
     SkillCast: ['Idle', 'Walk', 'Run', 'Fall', 'Dodge', 'Hurt', 'Death'],
     Dodge: ['Idle', 'Walk', 'Run', 'Jump', 'Fall', 'Hurt', 'Death'],
-    Hurt: ['Idle', 'Walk', 'Run', 'Fall', 'Death'],
+    Hurt: ['Idle', 'Walk', 'Run', 'Fall', 'Dodge', 'Death'],
     Climb: ['Idle', 'Walk', 'Run', 'Jump', 'Fall', 'Hurt', 'Death'],
     Death: [],
 };
@@ -42,9 +42,9 @@ export class PlayerStateMachine {
         this.attackRecoveryDuration = 0;
     }
 
-    setState(newState) {
-        if (this.currentState === newState) return false;
-        if (!this.canTransition(newState)) return false;
+    setState(newState, force = false) {
+        if (this.currentState === newState && !force) return false;
+        if (!force && !this.canTransition(newState)) return false;
 
         this.previousState = this.currentState;
         this.currentState = newState;

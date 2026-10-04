@@ -29,10 +29,12 @@ export class InputManager {
             Jump: ['Space'],
             Up: ['KeyW', 'ArrowUp'],
             Down: ['KeyS', 'ArrowDown'],
-            Dodge: ['ShiftLeft', 'ShiftRight', 'ControlLeft'],
+            Dodge: ['ShiftLeft', 'ShiftRight', 'ControlLeft', 'KeyL', 'KeyV'],
             Skill1: ['KeyQ'],
             Skill2: ['KeyE'],
             Skill3: ['KeyR'],
+            Attack: ['KeyJ', 'KeyC'],
+            HeavyAttack: ['KeyK', 'KeyX'],
             Pause: ['Escape'],
         };
 
@@ -56,21 +58,34 @@ export class InputManager {
             this.heldKeys.delete(e.code);
         });
 
-        // Releasing keys while the tab is unfocused never fires keyup.
-        window.addEventListener('blur', () => this.reset());
-
-        const canvas = document.getElementById('game-canvas');
-        if (!canvas) return;
-
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            this.mouseCanvasX = (e.clientX - rect.left) * (canvas.width / rect.width);
-            this.mouseCanvasY = (e.clientY - rect.top) * (canvas.height / rect.height);
-            this.mouse.x = e.clientX;
-            this.mouse.y = e.clientY;
+        // Clear held inputs when switching away from the tab
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) this.reset();
         });
 
-        canvas.addEventListener('mousedown', (e) => {
+        const canvas = document.getElementById('game-canvas');
+
+        const updateMousePosition = (clientX, clientY) => {
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                this.mouseCanvasX = (clientX - rect.left) * (canvas.width / rect.width);
+                this.mouseCanvasY = (clientY - rect.top) * (canvas.height / rect.height);
+            }
+            this.mouse.x = clientX;
+            this.mouse.y = clientY;
+        };
+
+        window.addEventListener('mousemove', (e) => {
+            updateMousePosition(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            // Do not capture clicks on interactive menu buttons, sliders, or modals
+            if (e.target && e.target.closest && e.target.closest('button, input, select, a, .menu-circle-btn, .modal-card, .hero-card')) {
+                return;
+            }
+            updateMousePosition(e.clientX, e.clientY);
             if (e.button === 0) {
                 this.mouse.left = true;
                 this.mouse.leftPressed = true;
@@ -80,13 +95,16 @@ export class InputManager {
             }
         });
 
-        // Listen on window so releasing outside the canvas still registers.
+        // Listen on window so releasing outside canvas still registers
         window.addEventListener('mouseup', (e) => {
             if (e.button === 0) this.mouse.left = false;
             else if (e.button === 2) this.mouse.right = false;
         });
 
-        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        window.addEventListener('contextmenu', (e) => {
+            if (e.target && e.target.closest && e.target.closest('input, textarea')) return;
+            e.preventDefault();
+        });
     }
 
     triggerActionCallback(code) {
@@ -147,15 +165,15 @@ export class InputManager {
     }
 
     isAttackPressed() {
-        return this.mouse.leftPressed;
+        return this.mouse.leftPressed || this.isActionJustPressed('Attack');
     }
 
     isHeavyAttackPressed() {
-        return this.mouse.rightPressed;
+        return this.mouse.rightPressed || this.isActionJustPressed('HeavyAttack');
     }
 
     isHeavyAttackHeld() {
-        return this.mouse.right;
+        return this.mouse.right || this.isActionPressed('HeavyAttack');
     }
 
     isDodgePressed() {

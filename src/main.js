@@ -43,7 +43,7 @@ import { EnemyManager } from './enemies/EnemyManager.js';
 import { CombatSystem } from './combat/CombatSystem.js';
 import { VFXManager } from './effects/VFXManager.js';
 import { UIManager } from './ui/UIManager.js';
-import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js?v=20261004_5';
+import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js';
 
 // Global references
 export let canvas, ctx;
@@ -83,6 +83,11 @@ function init() {
     player = new Player();
     uiManager = new UIManager();
     cemeteryMenuRenderer = new CemeteryHillsMenuRenderer();
+    const urlHero = new URLSearchParams(window.location.search).get('hero');
+    if (urlHero && ['knight', 'blonde', 'brown'].includes(urlHero)) {
+        selectedChampion = urlHero;
+        player.setCharacter(urlHero);
+    }
     cemeteryMenuRenderer.setSelectedHero(selectedChampion);
     cemeteryMenuRenderer.onSelectHero = (heroId) => {
         selectedChampion = heroId;
@@ -92,7 +97,21 @@ function init() {
     setupInputHandlers();
     setupUIHandlers();
 
-    showScreen('main-menu');
+    const testMode = new URLSearchParams(window.location.search).get('test');
+    if (testMode === 'portal') {
+        startGame();
+        enemyManager.enemies = [];
+        enemyManager.spawnPortal();
+    } else if (testMode === 'at_portal') {
+        startGame();
+        enemyManager.enemies = [];
+        enemyManager.spawnPortal();
+        player.x = 2240;
+        camera.x = 2240;
+    } else {
+        showScreen('main-menu');
+    }
+
     requestAnimationFrame(gameLoop);
 }
 
@@ -143,9 +162,11 @@ function setupInputHandlers() {
         document.getElementById('debug-info').classList.toggle('hidden', !GAME_CONFIG.DEBUG);
     });
 
-    // Tabbing away mid-fight shouldn't leave the player getting hit with no input.
-    window.addEventListener('blur', () => {
-        if (currentState === GameState.PLAYING) pauseGame();
+    // Pause only when user actually switches away from the browser tab
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && currentState === GameState.PLAYING) {
+            pauseGame();
+        }
     });
 }
 
@@ -202,11 +223,24 @@ function setupUIHandlers() {
     document.getElementById('btn-settings').addEventListener('click', () => openSettings('main-menu'));
     document.getElementById('btn-settings-back').addEventListener('click', () => showScreen(settingsReturnScreen));
 
-    // Hero Select Buttons
+    // Hero Select Cards & Buttons
+    document.querySelectorAll('.hero-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            const charId = card.dataset.char;
+            if (!charId) return;
+            selectedChampion = charId;
+            cemeteryMenuRenderer.setSelectedHero(charId);
+            player.setCharacter(charId);
+            audioManager.playSFX('ui_select');
+            showScreen('main-menu');
+        });
+    });
+
     document.querySelectorAll('.hero-select-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const charId = btn.dataset.char;
+            if (!charId) return;
             selectedChampion = charId;
             cemeteryMenuRenderer.setSelectedHero(charId);
             player.setCharacter(charId);
@@ -264,8 +298,15 @@ function showScreen(screenId) {
     document.getElementById('controls-help').classList.toggle('hidden', !inGameplay);
 
     // A button that keeps focus after being clicked would be re-activated by Space (jump).
-    if (inGameplay && document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
+    if (inGameplay) {
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+        if (canvas) {
+            canvas.tabIndex = 1;
+            canvas.focus();
+        }
+        window.focus();
     }
 }
 
@@ -306,6 +347,12 @@ function startGame() {
     audioManager.playMusic('combat');
 
     gameTime = 0;
+
+    if (canvas) {
+        canvas.tabIndex = 1;
+        canvas.focus();
+    }
+    window.focus();
 }
 
 function pauseGame() {
@@ -426,71 +473,258 @@ previewImages.blonde.src = 'girl warior.png';
 previewImages.brown.src = 'Girl Warior brown hair/Warrior/SpriteSheet/Warrior_Sheet-Effect.png';
 
 function renderHeroPreviews(time) {
-    // Knight Preview - centered in 140x120 canvas
+    // Knight Preview - centered squarely at x=70, grounded at y=112 in 140x120 canvas
     const cK = document.getElementById('hero-preview-knight');
     if (cK && previewImages.knight.complete && previewImages.knight.naturalWidth > 0) {
         const ctxK = cK.getContext('2d');
         ctxK.imageSmoothingEnabled = false;
         ctxK.clearRect(0, 0, cK.width, cK.height);
         const frame = Math.floor(time * 10) % 10;
-        // Knight frame is 120x80, scale to fit nicely in 140x120
-        const scale = 1.2;
+        // Knight frame 120x80; visual center is at x=55, boot soles at y=79
+        const scale = 2.4;
         const spriteW = 120 * scale;
         const spriteH = 80 * scale;
-        // Center horizontally, position at bottom
-        const dx = Math.round((cK.width - spriteW) / 2);
-        const dy = Math.round(cK.height - spriteH - 5);
+        const dx = Math.round(cK.width / 2 - 55 * scale);
+        const dy = Math.round((cK.height - 20) - 79 * scale);
         ctxK.drawImage(previewImages.knight, frame * 120, 0, 120, 80, dx, dy, spriteW, spriteH);
     }
 
-    // Blonde Valkyrie Preview - centered in 140x120 canvas
+    // Blonde Valkyrie Preview - centered squarely at x=70, grounded at y=112 in 140x120 canvas
     const cB = document.getElementById('hero-preview-blonde');
     if (cB && previewImages.blonde.complete && previewImages.blonde.naturalWidth > 0) {
         const ctxB = cB.getContext('2d');
         ctxB.imageSmoothingEnabled = false;
         ctxB.clearRect(0, 0, cB.width, cB.height);
         const frame = Math.floor(time * 7.2) % 6;
-        // Blonde frame is 69x44, scale to fit nicely in 140x120
-        const scale = 1.6;
+        // Blonde frame 69x44; visual center is at x=27, boot soles at y=43
+        const scale = 2.6;
         const spriteW = 69 * scale;
         const spriteH = 44 * scale;
-        // Center horizontally, position at bottom
-        const dx = Math.round((cB.width - spriteW) / 2);
-        const dy = Math.round(cB.height - spriteH - 5);
+        const dx = Math.round(cB.width / 2 - 27 * scale);
+        const dy = Math.round((cB.height - 8) - 43 * scale);
         ctxB.drawImage(previewImages.blonde, frame * 69, 0, 69, 44, dx, dy, spriteW, spriteH);
     }
 
-    // Brown Assassin Preview - centered in 140x120 canvas
+    // Brown Assassin Preview - centered squarely at x=70, grounded at y=112 in 140x120 canvas
     const cBr = document.getElementById('hero-preview-brown');
     if (cBr && previewImages.brown.complete && previewImages.brown.naturalWidth > 0) {
         const ctxBr = cBr.getContext('2d');
         ctxBr.imageSmoothingEnabled = false;
         ctxBr.clearRect(0, 0, cBr.width, cBr.height);
         const frame = Math.floor(time * 7.2) % 6;
-        // Brown frame is 69x44, scale to fit nicely in 140x120
-        const scale = 1.6;
+        // Brown frame 69x44; visual center is at x=27, boot soles at y=43
+        const scale = 2.6;
         const spriteW = 69 * scale;
         const spriteH = 44 * scale;
-        // Center horizontally, position at bottom
-        const dx = Math.round((cBr.width - spriteW) / 2);
-        const dy = Math.round(cBr.height - spriteH - 5);
+        const dx = Math.round(cBr.width / 2 - 27 * scale);
+        const dy = Math.round((cBr.height - 8) - 43 * scale);
         ctxBr.drawImage(previewImages.brown, frame * 69, 0, 69, 44, dx, dy, spriteW, spriteH);
     }
+}
+
+function parseBannerText(rawText) {
+    if (!rawText) return { category: 'VALORIA', title: '', subtitle: '', theme: 'gold' };
+
+    if (rawText.toUpperCase().includes('PORTAL')) {
+        return {
+            category: 'DIMENSIONAL GATEWAY',
+            title: 'FROST PORTAL UNLOCKED',
+            subtitle: 'Follow the runic compass beacon to advance',
+            theme: 'frost'
+        };
+    }
+
+    if (rawText.toLowerCase().includes('wave cleared')) {
+        return {
+            category: 'VICTORY',
+            title: 'WAVE CLEARED',
+            subtitle: 'Prepare for the oncoming onslaught',
+            theme: 'gold'
+        };
+    }
+
+    if (rawText.startsWith('MINI-BOSS:')) {
+        const parts = rawText.replace('MINI-BOSS:', '').trim().split('&');
+        return {
+            category: 'MINI-BOSS ENCOUNTER',
+            title: parts[0]?.trim().toUpperCase() || 'MINI-BOSS',
+            subtitle: parts[1] ? `& ${parts[1].trim()}` : 'Eliminate the abomination',
+            theme: 'crimson'
+        };
+    }
+
+    if (rawText.startsWith('BOSS:')) {
+        const parts = rawText.replace('BOSS:', '').trim().split('&');
+        return {
+            category: 'SUPREME THREAT DETECTED',
+            title: parts[0]?.trim().toUpperCase() || 'BOSS',
+            subtitle: parts[1] ? `& ${parts[1].trim()}` : 'A sinister terror approaches',
+            theme: 'crimson'
+        };
+    }
+
+    if (rawText.startsWith('FINAL CLIMAX:')) {
+        return {
+            category: 'FINAL CLIMAX',
+            title: 'MALAKAR, THE FALLEN KNIGHT',
+            subtitle: 'The fate of Valoria rests upon your blade',
+            theme: 'purple'
+        };
+    }
+
+    if (rawText.includes(':')) {
+        const [cat, rest] = rawText.split(':');
+        const [title, sub] = (rest || '').split('-');
+        return {
+            category: cat.trim().toUpperCase(),
+            title: (title || '').trim().toUpperCase(),
+            subtitle: (sub || '').trim(),
+            theme: cat.toUpperCase().includes('STAGE 2') ? 'frost' : 'gold'
+        };
+    }
+
+    return {
+        category: 'VALORIA',
+        title: rawText.toUpperCase(),
+        subtitle: '',
+        theme: 'gold'
+    };
 }
 
 function renderWaveBanner() {
     if (currentState !== GameState.PLAYING || enemyManager.bannerTimer <= 0) return;
 
-    const fade = Math.min(1, enemyManager.bannerTimer / 0.5);
+    const parsed = parseBannerText(enemyManager.bannerText);
+    const duration = enemyManager.bannerDuration || 3.0;
+    const timeLeft = enemyManager.bannerTimer;
+    const elapsed = duration - timeLeft;
+
+    let alpha = 1;
+    let scale = 1;
+    let offsetY = 0;
+
+    if (elapsed < 0.35) {
+        const progress = elapsed / 0.35;
+        alpha = progress;
+        scale = 0.94 + 0.06 * Math.sin(progress * Math.PI * 0.5);
+    } else if (timeLeft < 0.5) {
+        const progress = timeLeft / 0.5;
+        alpha = progress;
+        offsetY = (1 - progress) * -8;
+    }
+
     ctx.save();
-    ctx.globalAlpha = fade;
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+    const centerX = canvas.width / 2;
+    const bannerY = 170 + offsetY;
+
+    const themes = {
+        gold: {
+            accent: '#facc15',
+            gradientStart: '#ffffff',
+            gradientEnd: '#f59e0b',
+            border: 'rgba(217, 119, 6, 0.75)'
+        },
+        frost: {
+            accent: '#7dd3fc',
+            gradientStart: '#ffffff',
+            gradientEnd: '#38bdf8',
+            border: 'rgba(14, 165, 233, 0.75)'
+        },
+        crimson: {
+            accent: '#f87171',
+            gradientStart: '#ffffff',
+            gradientEnd: '#ef4444',
+            border: 'rgba(220, 38, 38, 0.75)'
+        },
+        purple: {
+            accent: '#c084fc',
+            gradientStart: '#ffffff',
+            gradientEnd: '#a855f7',
+            border: 'rgba(147, 51, 234, 0.75)'
+        }
+    };
+    const tStyle = themes[parsed.theme] || themes.gold;
+
+    ctx.font = '700 16px Cinzel, serif';
+    const titleMetrics = ctx.measureText(parsed.title);
+    const bannerW = Math.max(320, Math.min(500, Math.round(titleMetrics.width + 120)));
+    const bannerH = parsed.subtitle ? 46 : 36;
+
+    ctx.translate(centerX, bannerY);
+    ctx.scale(scale, scale);
+
+    // 1. Sleek Obsidian Background Ribbon
+    ctx.fillStyle = 'rgba(8, 6, 14, 0.92)';
+    ctx.beginPath();
+    ctx.roundRect(-bannerW / 2, -bannerH / 2, bannerW, bannerH, 4);
+    ctx.fill();
+
+    // 2. Filigree Hairline Borders
+    ctx.strokeStyle = tStyle.border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-bannerW * 0.44, -bannerH / 2);
+    ctx.lineTo(bannerW * 0.44, -bannerH / 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-bannerW * 0.44, bannerH / 2);
+    ctx.lineTo(bannerW * 0.44, bannerH / 2);
+    ctx.stroke();
+
+    // Center Ornamental Diamonds
+    ctx.fillStyle = tStyle.accent;
+    ctx.shadowColor = tStyle.accent;
+    ctx.shadowBlur = 5;
+    drawBannerDiamond(ctx, 0, -bannerH / 2, 2.5);
+    drawBannerDiamond(ctx, 0, bannerH / 2, 2.5);
+    ctx.shadowBlur = 0;
+
+    // 3. Category / Badge
     ctx.textAlign = 'center';
-    ctx.font = '600 44px Cinzel, serif';
-    ctx.fillStyle = '#c9a227';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 9px Cinzel, serif';
+    ctx.fillStyle = tStyle.accent;
     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-    ctx.shadowBlur = 12;
-    ctx.fillText(enemyManager.bannerText, canvas.width / 2, 150);
+    ctx.shadowBlur = 4;
+    const catY = parsed.subtitle ? -bannerH / 2 + 10 : -bannerH / 2 + 11;
+    ctx.fillText(parsed.category, 0, catY);
+
+    // 4. Main Title
+    ctx.font = '700 16px Cinzel, serif';
+    const textGrad = ctx.createLinearGradient(0, -8, 0, 8);
+    textGrad.addColorStop(0, tStyle.gradientStart);
+    textGrad.addColorStop(1, tStyle.gradientEnd);
+    ctx.fillStyle = textGrad;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+    ctx.shadowBlur = 6;
+    const titleY = parsed.subtitle ? -bannerH / 2 + 24 : -bannerH / 2 + 23;
+    ctx.fillText(parsed.title, 0, titleY);
+
+    // 5. Subtitle (if present)
+    if (parsed.subtitle) {
+        ctx.font = '10px Cinzel, serif';
+        ctx.fillStyle = '#cbd5e1';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 3;
+        ctx.fillText(parsed.subtitle, 0, -bannerH / 2 + 37);
+    }
+
     ctx.restore();
+}
+
+function drawBannerDiamond(ctx, x, y, size) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - size);
+    ctx.lineTo(x + size, y);
+    ctx.lineTo(x, y + size);
+    ctx.lineTo(x - size, y);
+    ctx.closePath();
+    ctx.fill();
 }
 
 function renderHitboxes() {

@@ -92,6 +92,7 @@ export class Player {
         this.comboCount = 0;
         this.comboTimer = 0;
         this.comboWindow = 0.35;
+        this.attackBufferTimer = 0;
         this.currentAttack = null;
         this.attackHitEnemies = new Set();
 
@@ -200,6 +201,7 @@ export class Player {
 
         this.comboCount = 0;
         this.comboTimer = 0;
+        this.attackBufferTimer = 0;
         this.currentAttack = null;
         this.attackHitEnemies.clear();
 
@@ -291,6 +293,10 @@ export class Player {
             if (this.comboTimer <= 0) this.comboCount = 0;
         }
 
+        if (this.attackBufferTimer > 0) {
+            this.attackBufferTimer -= dt;
+        }
+
         for (const skill of Object.values(this.skills)) {
             if (skill.cooldown > 0) skill.cooldown = Math.max(0, skill.cooldown - dt);
         }
@@ -330,6 +336,10 @@ export class Player {
             return;
         }
 
+        if (inputManager.isAttackPressed()) {
+            this.attackBufferTimer = 0.25;
+        }
+
         if (this.stateMachine.isLocked()) return;
 
         // Check for ladder interaction
@@ -339,7 +349,10 @@ export class Player {
             this.handleMovement(dt);
         }
 
-        if (inputManager.isAttackPressed()) this.attack();
+        if (this.attackBufferTimer > 0 && this.canAttack()) {
+            this.attackBufferTimer = 0;
+            this.attack();
+        }
         if (inputManager.isHeavyAttackPressed()) this.startHeavyAttack();
         if (inputManager.isDodgePressed()) this.dodge();
 
@@ -515,10 +528,18 @@ export class Player {
         if (this.characterId === 'brown') this.canDoubleJump = true;
     }
 
-    attack() {
+    canAttack() {
         const sm = this.stateMachine;
-        if (sm.currentState === 'Climb' || sm.currentState === 'Death' || sm.currentState === 'Hurt' || sm.currentState === 'Dodge') return;
-        if (sm.currentState !== 'Attack' && !sm.canTransition('Attack')) return;
+        if (sm.currentState === 'Climb' || sm.currentState === 'Death' || sm.currentState === 'Hurt' || sm.currentState === 'Dodge') return false;
+        if (this.isChargingHeavy) return false;
+        if (sm.currentState === 'Attack') {
+            return sm.attackPhase === 'recovery';
+        }
+        return sm.canTransition('Attack');
+    }
+
+    attack() {
+        if (!this.canAttack() && this.stateMachine.currentState !== 'Attack') return;
 
         // All heroes have a full, satisfying 3-hit combo chain
         const isAir = !this.grounded;
@@ -550,7 +571,7 @@ export class Player {
 
         const { startup, active, recovery } = this.currentAttack;
 
-        this.stateMachine.setState('Attack');
+        this.stateMachine.setState('Attack', true);
         this.stateMachine.setAttackTiming(startup, active, recovery);
         this.attackHitEnemies.clear();
 
@@ -608,7 +629,7 @@ export class Player {
         this.dodgeCooldown = this.dodgeCooldownMax;
         this.spendStamina(25);
         this.isInvulnerable = true;
-        this.invulnerabilityTimer = this.invulnerabilityDuration;
+        this.invulnerabilityTimer = this.dodgeDuration;
         this.currentAttack = null;
 
         this.stateMachine.setState('Dodge');

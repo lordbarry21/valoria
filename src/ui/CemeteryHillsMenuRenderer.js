@@ -26,14 +26,14 @@ export class CemeteryHillsMenuRenderer {
                 id: 'knight',
                 name: 'SIR ROLAND',
                 title: 'THE IRON BULWARK',
-                scale: 2.25,
+                scale: 3.5,
                 frameW: 120,
                 frameH: 80,
                 totalFrames: 10,
                 fps: 10,
                 anchorOffsetX: 55, // True visual center of 120x80 frame (bbox: 44..65 -> 54.5)
                 anchorOffsetY: 78, // Boot soles touch ground cleanly at frame bottom (bbox: 80)
-                headOffsetY: 76,   // Exact helmet top relative to feet
+                headTopFrameY: 42, // Helmet top in frame (78 - 42 = 36 frame px -> 126px tall)
                 themeColor: '#5dade2',
                 glowColor: 'rgba(93, 173, 226, 0.45)',
             },
@@ -41,14 +41,14 @@ export class CemeteryHillsMenuRenderer {
                 id: 'blonde',
                 name: 'LADY SYLVIA',
                 title: 'THE RADIANT BLADE',
-                scale: 2.45,
+                scale: 4.0,
                 frameW: 69,
                 frameH: 44,
                 totalFrames: 6,
                 fps: 7.2, // Slowed down by 10% for natural breathing motion
                 anchorOffsetX: 27, // True visual center of 69x44 frame (bbox: 18..36 -> 27)
                 anchorOffsetY: 43, // Boot soles touch ground cleanly at frame bottom (bbox: 43)
-                headOffsetY: 77,   // Exact hair top relative to feet
+                headTopFrameY: 12, // Hair top in frame (43 - 12 = 31 frame px -> 124px tall)
                 themeColor: '#f4d03f',
                 glowColor: 'rgba(244, 208, 63, 0.55)',
             },
@@ -56,14 +56,14 @@ export class CemeteryHillsMenuRenderer {
                 id: 'brown',
                 name: 'KAELEN',
                 title: 'THE SHADOW BLADE',
-                scale: 2.45,
+                scale: 4.0,
                 frameW: 69,
                 frameH: 44,
                 totalFrames: 6,
                 fps: 7.2, // Slowed down by 10% for natural breathing motion
                 anchorOffsetX: 27, // True visual center of 69x44 frame (bbox: 18..36 -> 27)
                 anchorOffsetY: 43, // Boot soles touch ground cleanly at frame bottom (bbox: 43)
-                headOffsetY: 77,   // Exact hair top relative to feet
+                headTopFrameY: 12, // Hair top in frame (43 - 12 = 31 frame px -> 124px tall)
                 themeColor: '#af7ac5',
                 glowColor: 'rgba(175, 122, 197, 0.45)',
             },
@@ -161,31 +161,33 @@ export class CemeteryHillsMenuRenderer {
         const drawX = Math.floor(posX - hero.anchorOffsetX * hero.scale);
         const drawY = Math.floor(posY - hero.anchorOffsetY * hero.scale);
 
+        const haloScale = hero.scale / 2.25;
+
         // 1. Contact Ground Shadow on cliff grass
         ctx.save();
         ctx.fillStyle = 'rgba(10, 8, 12, 0.75)';
         ctx.beginPath();
-        ctx.ellipse(posX, posY + 2, 38, 9, 0, 0, Math.PI * 2);
+        ctx.ellipse(posX, posY + 2, 38 * haloScale, 9 * haloScale, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
         // 2. Subtle Elemental / Rune Halo at feet
         ctx.save();
         const pulse = 0.85 + Math.sin(this.time * 3) * 0.15;
-        const glowGrad = ctx.createRadialGradient(posX, posY + 2, 4, posX, posY + 2, 36 * pulse);
+        const glowGrad = ctx.createRadialGradient(posX, posY + 2, 4, posX, posY + 2, 36 * pulse * haloScale);
         glowGrad.addColorStop(0, hero.glowColor);
         glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = glowGrad;
         ctx.beginPath();
-        ctx.ellipse(posX, posY + 2, 40 * pulse, 11 * pulse, 0, 0, Math.PI * 2);
+        ctx.ellipse(posX, posY + 2, 40 * pulse * haloScale, 11 * pulse * haloScale, 0, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.strokeStyle = hero.themeColor;
-        ctx.lineWidth = 1.4;
+        ctx.lineWidth = 1.6;
         ctx.shadowColor = hero.themeColor;
         ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.ellipse(posX, posY + 2, 28, 7, 0, 0, Math.PI * 2);
+        ctx.ellipse(posX, posY + 2, 28 * haloScale, 7 * haloScale, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
 
@@ -207,8 +209,8 @@ export class CemeteryHillsMenuRenderer {
         }
 
         // 4. Exact Nameplate Positioned Directly and Tightly Above the Hero's Head
-        // Arrow tip sits 8px directly above helmet/hair
-        const nameplateBottomY = posY - hero.headOffsetY - 10;
+        const headHeight = (hero.anchorOffsetY - hero.headTopFrameY) * hero.scale;
+        const nameplateBottomY = posY - headHeight - 10;
         this.renderNameplate(ctx, posX, nameplateBottomY, hero);
     }
 
