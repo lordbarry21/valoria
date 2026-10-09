@@ -34,16 +34,16 @@ let settingsReturnScreen = 'main-menu';
 // ============================================================================
 // CORE SYSTEMS
 // ============================================================================
-import { InputManager } from './core/InputManager.js';
-import { AudioManager } from './core/AudioManager.js';
-import { Camera } from './core/Camera.js';
-import { GameWorld } from './world/GameWorld.js';
-import { Player } from './player/Player.js';
-import { EnemyManager } from './enemies/EnemyManager.js';
-import { CombatSystem } from './combat/CombatSystem.js';
-import { VFXManager } from './effects/VFXManager.js';
-import { UIManager } from './ui/UIManager.js';
-import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js';
+import { InputManager } from './core/InputManager.js?v=20261009_5';
+import { AudioManager } from './core/AudioManager.js?v=20261009_5';
+import { Camera } from './core/Camera.js?v=20261009_5';
+import { GameWorld } from './world/GameWorld.js?v=20261009_5';
+import { Player } from './player/Player.js?v=20261009_5';
+import { EnemyManager } from './enemies/EnemyManager.js?v=20261009_5';
+import { CombatSystem } from './combat/CombatSystem.js?v=20261009_5';
+import { VFXManager } from './effects/VFXManager.js?v=20261009_5';
+import { UIManager } from './ui/UIManager.js?v=20261009_5';
+import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js?v=20261009_5';
 
 // Global references
 export let canvas, ctx;
@@ -96,6 +96,7 @@ function init() {
 
     setupInputHandlers();
     setupUIHandlers();
+    syncFullscreenLabel();
 
     const testMode = new URLSearchParams(window.location.search).get('test');
     if (testMode === 'portal') {
@@ -110,6 +111,7 @@ function init() {
         camera.x = 2240;
     } else {
         showScreen('main-menu');
+        audioManager.playMusic('menu');
     }
 
     requestAnimationFrame(gameLoop);
@@ -180,30 +182,46 @@ function openSettings(returnScreen) {
 
 function setupUIHandlers() {
     // Start Game: launches battle directly with the currently selected champion
-    const fsModal = document.getElementById('fullscreen-modal');
     document.getElementById('btn-start').addEventListener('click', () => {
         audioManager.playSFX('ui_click');
         player.setCharacter(selectedChampion);
-        if (!document.fullscreenElement) {
-            fsModal?.classList.remove('hidden');
-        } else {
-            startGame();
+        startGame();
+    });
+
+    // Main Menu interactive hero actions & launch shortcut
+    window.addEventListener('keydown', (e) => {
+        if (currentState === GameState.MENU) {
+            const charSelect = document.getElementById('char-select-screen');
+            const settingsMenu = document.getElementById('settings-menu');
+            const isSubmenuOpen = (!charSelect?.classList.contains('hidden')) || (!settingsMenu?.classList.contains('hidden'));
+            if (!isSubmenuOpen) {
+                if (e.code === 'Enter') {
+                    e.preventDefault();
+                    audioManager.playSFX('ui_click');
+                    player.setCharacter(selectedChampion);
+                    startGame();
+                } else if (e.code === 'KeyJ' || e.code === 'KeyC' || e.code === 'KeyZ') {
+                    cemeteryMenuRenderer?.triggerHeroAction('attack');
+                    audioManager.playSFX('sword_swing_light');
+                } else if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
+                    cemeteryMenuRenderer?.triggerHeroAction('jump');
+                    audioManager.playSFX('player_jump');
+                }
+            }
         }
     });
 
-    document.getElementById('btn-fs-yes')?.addEventListener('click', async () => {
-        fsModal?.classList.add('hidden');
-        try {
-            await document.documentElement.requestFullscreen?.();
-        } catch (_) {}
-        player.setCharacter(selectedChampion);
-        startGame();
-    });
-
-    document.getElementById('btn-fs-no')?.addEventListener('click', () => {
-        fsModal?.classList.add('hidden');
-        player.setCharacter(selectedChampion);
-        startGame();
+    // Clicking the champion on the plateau triggers action preview
+    canvas?.addEventListener('click', (e) => {
+        if (currentState === GameState.MENU) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const canvasY = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const clicked = cemeteryMenuRenderer?.handleClick(canvasX, canvasY);
+            if (clicked === 'hero_clicked') {
+                audioManager.playSFX('sword_swing_light');
+            }
+        }
     });
 
     // Circular Hero Select Button
@@ -263,7 +281,24 @@ function setupUIHandlers() {
 
     document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
     document.getElementById('btn-quick-fullscreen')?.addEventListener('click', toggleFullscreen);
-    document.addEventListener('fullscreenchange', syncFullscreenLabel);
+    document.getElementById('btn-menu-fullscreen')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        audioManager.playSFX('ui_click');
+        toggleFullscreen();
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+        resizeCanvas();
+        syncFullscreenLabel();
+    });
+    document.addEventListener('webkitfullscreenchange', () => {
+        resizeCanvas();
+        syncFullscreenLabel();
+    });
+    window.addEventListener('resize', () => {
+        resizeCanvas();
+        syncFullscreenLabel();
+    });
 
     document.getElementById('btn-resume').addEventListener('click', resumeGame);
     document.getElementById('btn-pause-settings').addEventListener('click', () => openSettings('pause-menu'));
@@ -310,16 +345,105 @@ function showScreen(screenId) {
     }
 }
 
-function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen?.();
+export function isHtmlFullscreen() {
+    return Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+    );
+}
+
+export function isGameFullscreen() {
+    return Boolean(
+        isHtmlFullscreen() ||
+        window.matchMedia?.('(display-mode: fullscreen)')?.matches
+    );
+}
+
+export async function requestGameFullscreen() {
+    try {
+        if (!isHtmlFullscreen()) {
+            const elem = document.documentElement;
+            const req = elem.requestFullscreen ||
+                        elem.webkitRequestFullscreen ||
+                        elem.mozRequestFullScreen ||
+                        elem.msRequestFullscreen;
+            if (req) {
+                await req.call(elem);
+            }
+        }
+    } catch (err) {
+        console.warn('Fullscreen request failed on root element, trying container fallback:', err);
+        try {
+            const container = document.getElementById('game-container');
+            const req = container?.requestFullscreen ||
+                        container?.webkitRequestFullscreen ||
+                        container?.mozRequestFullScreen ||
+                        container?.msRequestFullscreen;
+            if (req) await req.call(container);
+        } catch (innerErr) {
+            console.error('All fullscreen requests failed:', innerErr);
+        }
+    } finally {
+        setTimeout(() => {
+            resizeCanvas();
+            syncFullscreenLabel();
+        }, 100);
+    }
+}
+
+export async function exitGameFullscreen() {
+    try {
+        if (isHtmlFullscreen()) {
+            const exit = document.exitFullscreen ||
+                         document.webkitExitFullscreen ||
+                         document.mozCancelFullScreen ||
+                         document.msExitFullscreen;
+            if (exit) {
+                await exit.call(document);
+            }
+        }
+    } catch (err) {
+        console.warn('Exit fullscreen failed:', err);
+    } finally {
+        setTimeout(() => {
+            resizeCanvas();
+            syncFullscreenLabel();
+        }, 100);
+    }
+}
+
+export async function toggleFullscreen() {
+    if (isHtmlFullscreen()) {
+        await exitGameFullscreen();
     } else {
-        document.exitFullscreen?.();
+        await requestGameFullscreen();
     }
 }
 
 function syncFullscreenLabel() {
-    document.getElementById('btn-fullscreen').textContent = document.fullscreenElement ? 'ON' : 'OFF';
+    const isFs = isGameFullscreen();
+    const settingsBtn = document.getElementById('btn-fullscreen');
+    if (settingsBtn) settingsBtn.textContent = isFs ? 'ON' : 'OFF';
+
+    // Toggle menu fullscreen button icon & tooltip
+    const menuFsBtn = document.getElementById('btn-menu-fullscreen');
+    if (menuFsBtn) {
+        menuFsBtn.title = isFs ? 'Exit Fullscreen (F)' : 'Toggle Fullscreen (F)';
+        menuFsBtn.setAttribute('aria-label', isFs ? 'Exit Fullscreen' : 'Toggle Fullscreen');
+        const iconExpand = menuFsBtn.querySelector('.fs-icon.icon-expand');
+        const iconCompress = menuFsBtn.querySelector('.fs-icon.icon-compress');
+        if (iconExpand && iconCompress) {
+            iconExpand.classList.toggle('hidden', isFs);
+            iconCompress.classList.toggle('hidden', !isFs);
+        }
+    }
+
+    const quickFsBtn = document.getElementById('btn-quick-fullscreen');
+    if (quickFsBtn) {
+        quickFsBtn.title = isFs ? 'Exit Fullscreen (F)' : 'Fullscreen (F)';
+    }
 }
 
 // ============================================================================
@@ -344,7 +468,7 @@ function startGame() {
     camera.snapToTarget();
 
     enemyManager.spawnWave();
-    audioManager.playMusic('combat');
+    audioManager.playMusic(enemyManager.stage === 2 ? 'stage2' : 'stage1');
 
     gameTime = 0;
 

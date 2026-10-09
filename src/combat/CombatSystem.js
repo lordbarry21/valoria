@@ -101,22 +101,45 @@ export class CombatSystem {
     }
 
     triggerHitFeedback(attack, enemy) {
-        // Hit-stop
-        player.hitStopTime = attack.hitStop / 1000;
-        enemy.hitStopTime = attack.hitStop / 1000;
+        const isKnight = player.characterId === 'knight';
+        const isHeavyOrFinisher = attack.id === 'slash_3' || attack.id === 'slash_4' || attack.id === 'heavy' || attack.id === 'iron_breaker';
+
+        // Hit-stop tuning for meaty dark fantasy crunch
+        let hitStopMs = attack.hitStop;
+        if (isKnight) {
+            hitStopMs = isHeavyOrFinisher ? Math.max(70, attack.hitStop * 1.35) : Math.max(35, attack.hitStop * 1.2);
+            if (enemy.isDead) hitStopMs += 35; // Lethal execution crunch pause
+        }
+
+        player.hitStopTime = hitStopMs / 1000;
+        enemy.hitStopTime = hitStopMs / 1000;
 
         // Screen shake
-        if (attack.screenShake === 'light') camera.shakeLight();
-        else if (attack.screenShake === 'medium') camera.shakeMedium();
-        else if (attack.screenShake === 'heavy') camera.shakeHeavy();
+        if (attack.screenShake === 'light') {
+            if (isKnight) camera.shake(5, 0.12);
+            else camera.shakeLight();
+        } else if (attack.screenShake === 'medium') {
+            if (isKnight) camera.shake(10, 0.18);
+            else camera.shakeMedium();
+        } else if (attack.screenShake === 'heavy') {
+            if (isKnight) camera.shake(16, 0.25);
+            else camera.shakeHeavy();
+        }
 
-        // Impact effects
+        if (isKnight && isHeavyOrFinisher) {
+            camera.impactZoom(0.12, 0.2);
+        }
+
+        // Visceral impact effects (directional arterial blood spray, sharp slash wound gouge, friction sparks, lethal gore burst)
         const impactX = enemy.x;
         const impactY = enemy.y - enemy.height / 2;
-        vfxManager.createImpact(impactX, impactY, attack.impactSound);
+        vfxManager.createVisceralImpact(impactX, impactY, player.facing, attack, enemy.isDead, player.isRaging, player.characterId);
 
         // Sound
         audioManager.playSFX(attack.impactSound);
+        if (isKnight && isHeavyOrFinisher) {
+            audioManager.playSFX('sword_impact_metal');
+        }
     }
 
     boxCollision(a, b) {

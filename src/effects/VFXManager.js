@@ -54,6 +54,7 @@ export class VFXManager {
             p.x += p.vx * dt;
             p.y += p.vy * dt;
             p.vy += p.gravity * dt;
+            if (p.vRot) p.rot = (p.rot || 0) + p.vRot * dt;
             p.life -= dt;
             if (p.life <= 0) {
                 this.particles.splice(i, 1);
@@ -116,13 +117,63 @@ export class VFXManager {
             this.renderTrail(ctx, trail);
         }
 
-        // Render particles
+        // Render particles with dark fantasy styling (directional blood streaks, elongated sparks, rock debris)
         for (const p of this.particles) {
-            ctx.globalAlpha = Math.min(1, p.life / 0.2);
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
-            ctx.fill();
+            ctx.save();
+            const alpha = Math.min(1, p.life / 0.18);
+            ctx.globalAlpha = alpha;
+
+            if (p.type === 'blood') {
+                const speed = Math.hypot(p.vx, p.vy);
+                if (speed > 55) {
+                    const dirX = p.vx / speed;
+                    const dirY = p.vy / speed;
+                    const len = Math.min(15, speed * 0.04) * (p.life / p.maxLife);
+                    ctx.strokeStyle = p.color;
+                    ctx.lineWidth = Math.max(1.8, p.size * 0.85 * (p.life / p.maxLife));
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - dirX * len, p.y - dirY * len);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (p.type === 'spark') {
+                const speed = Math.hypot(p.vx, p.vy);
+                if (speed > 70) {
+                    const dirX = p.vx / speed;
+                    const dirY = p.vy / speed;
+                    const len = Math.min(12, speed * 0.03) * (p.life / p.maxLife);
+                    ctx.strokeStyle = p.color;
+                    ctx.lineWidth = Math.max(1.2, p.size * 0.6);
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - dirX * len, p.y - dirY * len);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (p.type === 'rock') {
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot || 0);
+                ctx.fillStyle = p.color;
+                const s = p.size * (p.life / p.maxLife);
+                ctx.fillRect(-s / 2, -s / 2, s, s);
+            } else {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
         }
         ctx.globalAlpha = 1;
 
@@ -658,6 +709,21 @@ export class VFXManager {
             case 'slash':
                 this.renderSlash(ctx, effect, progress);
                 break;
+            case 'knightSlash':
+                this.renderKnightSlash(ctx, effect, progress);
+                break;
+            case 'knightHeavyCleave':
+                this.renderKnightHeavyCleave(ctx, effect, progress);
+                break;
+            case 'visceralSlashMark':
+                this.renderVisceralSlashMark(ctx, effect, progress);
+                break;
+            case 'seismicShockwave':
+                this.renderSeismicShockwave(ctx, effect, progress);
+                break;
+            case 'rageFlameWave':
+                this.renderRageFlameWave(ctx, effect, progress);
+                break;
             case 'impact':
                 this.renderImpact(ctx, effect, progress);
                 break;
@@ -773,6 +839,273 @@ export class VFXManager {
         ctx.restore();
     }
 
+    renderKnightSlash(ctx, effect, progress) {
+        const { x, y, facing, comboCount = 1, isAir = false, isRaging = false } = effect;
+        const alpha = Math.max(0, 1 - progress);
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(facing, 1);
+
+        if (isAir || comboCount === 2) {
+            // ====================================================
+            // COMBO 2 & AIR: VERTICAL HELM-SPLITTER DOWNWARD CLEAVE
+            // ====================================================
+            const centerY = -30;
+            const radius = 78;
+            const startAngle = -Math.PI * 0.85;
+            const endAngle = startAngle + Math.min(1.0, progress * 1.5) * Math.PI * 1.05;
+
+            // 1. Outer volcanic crimson haze
+            ctx.strokeStyle = isRaging ? `rgba(255, 30, 0, ${alpha * 0.85})` : `rgba(255, 75, 10, ${alpha * 0.7})`;
+            ctx.lineWidth = (1 - progress) * 20;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(0, centerY, radius, startAngle, endAngle);
+            ctx.stroke();
+
+            // 2. Heavy steel glowing core
+            ctx.strokeStyle = isRaging ? `rgba(255, 180, 50, ${alpha * 0.95})` : `rgba(255, 230, 140, ${alpha * 0.95})`;
+            ctx.lineWidth = Math.max(2, (1 - progress) * 8);
+            ctx.beginPath();
+            ctx.arc(0, centerY, radius, startAngle, endAngle);
+            ctx.stroke();
+
+            // 3. Searing white-hot edge
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = Math.max(1, (1 - progress) * 3);
+            ctx.beginPath();
+            ctx.arc(0, centerY, radius + 2, startAngle + 0.1, endAngle);
+            ctx.stroke();
+
+            // 4. Ground spark burst at bottom of downward chop
+            if (progress > 0.4 && progress < 0.9) {
+                const spAlpha = (1 - progress) * 2;
+                ctx.fillStyle = isRaging ? `rgba(255, 60, 0, ${spAlpha})` : `rgba(255, 220, 100, ${spAlpha})`;
+                ctx.beginPath();
+                ctx.arc(radius * 0.9, centerY + radius * 0.4, 8 * (1 - progress), 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (comboCount >= 3) {
+            // ====================================================
+            // COMBO 3: SAVAGE DOUBLE-CLEAVE FINISHER
+            // ====================================================
+            const centerY = -36;
+            const r1 = 76;
+            const r2 = 88;
+
+            // Primary slash: horizontal sweeping decapitation arc
+            const s1 = -Math.PI * 0.65;
+            const e1 = s1 + Math.min(1.0, progress * 1.3) * Math.PI * 1.0;
+
+            ctx.strokeStyle = isRaging ? `rgba(255, 20, 0, ${alpha * 0.85})` : `rgba(255, 80, 0, ${alpha * 0.75})`;
+            ctx.lineWidth = (1 - progress) * 18;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(0, centerY, r1, s1, e1);
+            ctx.stroke();
+
+            ctx.strokeStyle = `rgba(255, 240, 200, ${alpha * 0.95})`;
+            ctx.lineWidth = Math.max(2, (1 - progress) * 7);
+            ctx.beginPath();
+            ctx.arc(0, centerY, r1, s1, e1);
+            ctx.stroke();
+
+            // Secondary upward rising execution arc
+            const s2 = Math.PI * 0.2;
+            const e2 = s2 - Math.min(1.0, progress * 1.4) * Math.PI * 1.1;
+
+            ctx.strokeStyle = isRaging ? `rgba(255, 120, 0, ${alpha * 0.8})` : `rgba(255, 160, 40, ${alpha * 0.7})`;
+            ctx.lineWidth = (1 - progress) * 14;
+            ctx.beginPath();
+            ctx.arc(10, centerY - 6, r2, s2, e2, true);
+            ctx.stroke();
+
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = Math.max(1, (1 - progress) * 3);
+            ctx.beginPath();
+            ctx.arc(10, centerY - 6, r2, s2, e2, true);
+            ctx.stroke();
+        } else {
+            // ====================================================
+            // COMBO 1: WIDE FORWARD CLEAVE (THE TITAN'S BLADE)
+            // ====================================================
+            const centerY = -38;
+            const radius = 75;
+            const startAngle = -Math.PI * 0.6;
+            const endAngle = startAngle + Math.min(1.0, progress * 1.4) * Math.PI * 0.95;
+
+            // Outer fiery blade glow
+            ctx.strokeStyle = isRaging ? `rgba(255, 20, 0, ${alpha * 0.85})` : `rgba(255, 100, 20, ${alpha * 0.75})`;
+            ctx.lineWidth = (1 - progress) * 16;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(0, centerY, radius, startAngle, endAngle);
+            ctx.stroke();
+
+            // Inner hot steel core
+            ctx.strokeStyle = isRaging ? `rgba(255, 200, 50, ${alpha * 0.95})` : `rgba(255, 235, 180, ${alpha * 0.95})`;
+            ctx.lineWidth = Math.max(2, (1 - progress) * 6);
+            ctx.beginPath();
+            ctx.arc(0, centerY, radius, startAngle, endAngle);
+            ctx.stroke();
+
+            // Searing razor edge
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = Math.max(1, (1 - progress) * 2.5);
+            ctx.beginPath();
+            ctx.arc(0, centerY, radius + 2, startAngle, endAngle);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    renderKnightHeavyCleave(ctx, effect, progress) {
+        const { x, y, facing, chargePercent = 1.0, isRaging = false } = effect;
+        const alpha = Math.max(0, 1 - progress);
+        const radius = 95 + 25 * chargePercent;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(facing, 1);
+
+        const centerY = -30;
+        const startAngle = -Math.PI * 0.85;
+        const endAngle = startAngle + Math.min(1.0, progress * 1.5) * Math.PI * 1.15;
+
+        // 1. Apocalyptic outer crimson shockwave
+        ctx.strokeStyle = isRaging ? `rgba(255, 10, 0, ${alpha * 0.9})` : `rgba(255, 50, 0, ${alpha * 0.75})`;
+        ctx.lineWidth = (1 - progress) * (24 + 10 * chargePercent);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(0, centerY, radius, startAngle, endAngle);
+        ctx.stroke();
+
+        // 2. Searing molten orange cleave
+        ctx.strokeStyle = isRaging ? `rgba(255, 140, 20, ${alpha * 0.95})` : `rgba(255, 180, 50, ${alpha * 0.9})`;
+        ctx.lineWidth = Math.max(3, (1 - progress) * 12);
+        ctx.beginPath();
+        ctx.arc(0, centerY, radius, startAngle, endAngle);
+        ctx.stroke();
+
+        // 3. Blinding white razor blade core
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.lineWidth = Math.max(1.5, (1 - progress) * 5);
+        ctx.beginPath();
+        ctx.arc(0, centerY, radius + 2, startAngle + 0.05, endAngle);
+        ctx.stroke();
+
+        // 4. Trailing speed slice lines
+        for (let i = 1; i <= 2; i++) {
+            ctx.strokeStyle = `rgba(255, 120, 30, ${alpha * 0.5})`;
+            ctx.lineWidth = (1 - progress) * 4;
+            ctx.beginPath();
+            ctx.arc(0, centerY, radius - i * 14, startAngle + 0.15 * i, endAngle - 0.1 * i);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    renderVisceralSlashMark(ctx, effect, progress) {
+        const { x, y, angle = 0.5, length = 45, isDual = false } = effect;
+        const alpha = Math.max(0, 1 - progress);
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+
+        // Blazing crimson wound aura
+        ctx.strokeStyle = `rgba(180, 0, 0, ${alpha * 0.9})`;
+        ctx.lineWidth = Math.max(2, (1 - progress) * 8);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-length * 0.5, 0);
+        ctx.lineTo(length * 0.5, 0);
+        ctx.stroke();
+
+        // White-hot flesh-parting core
+        ctx.strokeStyle = `rgba(255, 240, 240, ${alpha})`;
+        ctx.lineWidth = Math.max(1, (1 - progress) * 2.5);
+        ctx.beginPath();
+        ctx.moveTo(-length * 0.45, 0);
+        ctx.lineTo(length * 0.45, 0);
+        ctx.stroke();
+
+        // If dual / heavy: Cross 'X' cut
+        if (isDual) {
+            ctx.rotate(Math.PI * 0.45);
+            ctx.strokeStyle = `rgba(200, 10, 10, ${alpha * 0.85})`;
+            ctx.lineWidth = Math.max(2, (1 - progress) * 7);
+            ctx.beginPath();
+            ctx.moveTo(-length * 0.4, 0);
+            ctx.lineTo(length * 0.4, 0);
+            ctx.stroke();
+
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.95})`;
+            ctx.lineWidth = Math.max(1, (1 - progress) * 2);
+            ctx.beginPath();
+            ctx.moveTo(-length * 0.35, 0);
+            ctx.lineTo(length * 0.35, 0);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    renderSeismicShockwave(ctx, effect, progress) {
+        const { x, y, intensity = 2.0 } = effect;
+        const maxR = 120 * intensity;
+
+        ctx.save();
+        // Expanding isometric ground shockwaves
+        for (let i = 0; i < 3; i++) {
+            const ringProg = Math.max(0, progress - i * 0.15);
+            if (ringProg <= 0) continue;
+            const rx = ringProg * maxR;
+            const ry = rx * 0.35;
+            const ringAlpha = (1 - ringProg) * (1 - i * 0.25);
+
+            ctx.strokeStyle = i === 0
+                ? `rgba(255, 70, 0, ${ringAlpha * 0.9})`
+                : `rgba(255, 170, 40, ${ringAlpha * 0.7})`;
+            ctx.lineWidth = Math.max(1.5, (1 - ringProg) * (8 - i * 2));
+            ctx.beginPath();
+            ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    renderRageFlameWave(ctx, effect, progress) {
+        const { x, y, facing, speed = 350 } = effect;
+        const alpha = Math.max(0, 1 - progress);
+        const curX = x + facing * (speed * progress);
+
+        ctx.save();
+        ctx.translate(curX, y - 28);
+        ctx.scale(facing, 1);
+
+        // Blazing forward-moving fire wave crescent
+        const h = 55 * (1 - progress * 0.3);
+        const grad = ctx.createLinearGradient(0, -h, 0, h);
+        grad.addColorStop(0, 'rgba(255, 50, 0, 0)');
+        grad.addColorStop(0.5, `rgba(255, 160, 20, ${alpha * 0.9})`);
+        grad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(18, 0);
+        ctx.quadraticCurveTo(-15, -h * 0.6, -10, -h);
+        ctx.quadraticCurveTo(-4, 0, -10, h);
+        ctx.quadraticCurveTo(-15, h * 0.6, 18, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+    }
+
     renderImpact(ctx, effect, progress) {
         const { x, y, intensity } = effect;
         const baseRadius = 40 * intensity;
@@ -874,6 +1207,11 @@ export class VFXManager {
     // ============================================================================
 
     createSwordSwing(player, attack) {
+        if (player.characterId === 'knight') {
+            this.createKnightSwordSwing(player, attack);
+            return;
+        }
+
         const effect = {
             type: 'slash',
             x: player.x,
@@ -886,7 +1224,70 @@ export class VFXManager {
         this.effects.push(effect);
     }
 
-    createHeavySwing(player, attack) {
+    createKnightSwordSwing(player, attack) {
+        const isAir = !player.grounded;
+        const combo = player.comboCount || 1;
+        const isHeavy = attack.swingSound === 'sword_swing_heavy' || combo >= 2;
+        const effect = {
+            type: 'knightSlash',
+            x: player.x,
+            y: player.y,
+            facing: player.facing,
+            comboCount: combo,
+            isAir,
+            isRaging: Boolean(player.isRaging),
+            attackType: isHeavy ? 'heavy' : 'light',
+            life: 0.22,
+            maxLife: 0.22
+        };
+        this.effects.push(effect);
+
+        // Flying sparks along the cutting path
+        const numSparks = player.isRaging ? 14 : (isHeavy ? 10 : 6);
+        for (let i = 0; i < numSparks; i++) {
+            const angle = player.facing === 1
+                ? (-Math.PI * 0.45 + (Math.random() - 0.5) * 1.2)
+                : (-Math.PI * 0.55 + (Math.random() - 0.5) * 1.2);
+            const speed = 120 + Math.random() * 220;
+            this.particles.push({
+                type: 'spark',
+                x: player.x + player.facing * (35 + Math.random() * 40),
+                y: player.y - 35 + (Math.random() - 0.5) * 35,
+                vx: Math.cos(angle) * speed * player.facing,
+                vy: Math.sin(angle) * speed - 40,
+                size: 2 + Math.random() * 3,
+                color: player.isRaging ? '#ff3300' : (Math.random() > 0.4 ? '#ffcc33' : '#ffffff'),
+                life: 0.2 + Math.random() * 0.18,
+                maxLife: 0.38,
+                gravity: 250
+            });
+        }
+
+        // If raging: unleash an aggressive forward fire wave
+        if (player.isRaging) {
+            this.effects.push({
+                type: 'rageFlameWave',
+                x: player.x + player.facing * 30,
+                y: player.y,
+                facing: player.facing,
+                speed: 380,
+                life: 0.28,
+                maxLife: 0.28
+            });
+        }
+
+        // Foot dust on heavy cleave
+        if (isHeavy && player.grounded) {
+            this.createDust(player.x, player.y);
+        }
+    }
+
+    createHeavySwing(player, attack, chargePercent = 1.0) {
+        if (player.characterId === 'knight') {
+            this.createKnightHeavyCleave(player, attack, chargePercent);
+            return;
+        }
+
         const effect = {
             type: 'heavySlash',
             x: player.x,
@@ -899,6 +1300,175 @@ export class VFXManager {
 
         // Dust at feet
         this.createDust(player.x, player.y);
+    }
+
+    createKnightHeavyCleave(player, attack, chargePercent = 1.0) {
+        const effect = {
+            type: 'knightHeavyCleave',
+            x: player.x,
+            y: player.y,
+            facing: player.facing,
+            chargePercent,
+            isRaging: Boolean(player.isRaging),
+            life: 0.32,
+            maxLife: 0.32
+        };
+        this.effects.push(effect);
+
+        // Ground fracture at impact point
+        const impactX = player.x + player.facing * 60;
+        this.effects.push({
+            type: 'fissure',
+            x: impactX,
+            y: player.y,
+            facing: player.facing,
+            length: 120 + 80 * chargePercent,
+            life: 0.45,
+            maxLife: 0.45
+        });
+
+        // Rock chunks blasted into the air
+        const rocks = 12 + Math.floor(16 * chargePercent);
+        for (let i = 0; i < rocks; i++) {
+            const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.6;
+            const speed = 160 + Math.random() * (220 * chargePercent + 100);
+            this.particles.push({
+                type: 'rock',
+                x: impactX + (Math.random() - 0.5) * 30,
+                y: player.y - 4,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 80,
+                size: 3 + Math.random() * 5,
+                rot: Math.random() * Math.PI * 2,
+                vRot: (Math.random() - 0.5) * 15,
+                color: Math.random() > 0.5 ? '#3b2f28' : '#57483d',
+                life: 0.45 + Math.random() * 0.3,
+                maxLife: 0.75,
+                gravity: 600
+            });
+        }
+
+        // Fire sparks
+        const sparks = 15 + Math.floor(15 * chargePercent);
+        for (let i = 0; i < sparks; i++) {
+            const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * 2;
+            const speed = 180 + Math.random() * 250;
+            this.particles.push({
+                type: 'spark',
+                x: impactX,
+                y: player.y - 10,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 60,
+                size: 2 + Math.random() * 3,
+                color: Math.random() > 0.3 ? '#ffaa00' : '#ffffff',
+                life: 0.3 + Math.random() * 0.2,
+                maxLife: 0.5,
+                gravity: 400
+            });
+        }
+
+        this.createDust(impactX, player.y);
+    }
+
+    createVisceralImpact(x, y, facing, attack, isDead = false, isRaging = false, characterId = 'knight') {
+        const isKnight = characterId === 'knight';
+        const isHeavy = attack.id === 'slash_3' || attack.id === 'slash_4' || attack.id === 'heavy' || attack.id === 'iron_breaker';
+
+        // 1. Visceral wound slash mark directly on the target
+        this.effects.push({
+            type: 'visceralSlashMark',
+            x, y,
+            angle: isHeavy ? (Math.random() > 0.5 ? 0.35 : -0.35) : (Math.random() > 0.5 ? 0.6 : -0.6),
+            isDual: isHeavy,
+            length: isHeavy ? 65 : 44,
+            life: 0.28,
+            maxLife: 0.28
+        });
+
+        // 2. High-velocity arterial blood spray
+        const bloodCount = isDead ? (isKnight ? 38 : 26) : (isHeavy ? 20 : 12);
+        for (let i = 0; i < bloodCount; i++) {
+            let angle;
+            if (isDead) {
+                // Lethal execution: 360-degree gore burst with forward bias
+                angle = Math.random() * Math.PI * 2;
+            } else {
+                angle = (facing === 1 ? -0.3 : Math.PI + 0.3) + (Math.random() - 0.5) * 1.3;
+            }
+            const speed = isDead ? (120 + Math.random() * 320) : (160 + Math.random() * 260);
+            const bloodColors = ['#4a0000', '#7a0000', '#990000', '#cc0505', '#2c0000'];
+
+            this.particles.push({
+                type: 'blood',
+                x: x + (Math.random() - 0.5) * 14,
+                y: y + (Math.random() - 0.5) * 20,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 50,
+                size: 2.2 + Math.random() * 3.2,
+                color: bloodColors[Math.floor(Math.random() * bloodColors.length)],
+                life: 0.35 + Math.random() * 0.3,
+                maxLife: 0.65,
+                gravity: 450
+            });
+        }
+
+        // 3. Dense metallic & armor sparks
+        const sparkCount = isHeavy ? 20 : 12;
+        for (let i = 0; i < sparkCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 140 + Math.random() * 240;
+            this.particles.push({
+                type: 'spark',
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 60,
+                size: 1.5 + Math.random() * 2.5,
+                color: Math.random() > 0.4 ? '#ffffff' : (Math.random() > 0.5 ? '#ffcc44' : '#ff6600'),
+                life: 0.22 + Math.random() * 0.18,
+                maxLife: 0.4,
+                gravity: 350
+            });
+        }
+
+        // 4. If lethal kill: extra gore chunks and dark shadow mist
+        if (isDead) {
+            for (let i = 0; i < 10; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 80 + Math.random() * 160;
+                this.particles.push({
+                    type: 'rock',
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 80,
+                    size: 3 + Math.random() * 4,
+                    rot: Math.random() * Math.PI * 2,
+                    vRot: (Math.random() - 0.5) * 12,
+                    color: Math.random() > 0.5 ? '#1f0303' : '#140000',
+                    life: 0.5 + Math.random() * 0.3,
+                    maxLife: 0.8,
+                    gravity: 380
+                });
+            }
+        }
+
+        // 5. If raging: explosive fire detonation at impact point
+        if (isRaging) {
+            for (let i = 0; i < 16; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 120 + Math.random() * 200;
+                this.particles.push({
+                    type: 'spark',
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 70,
+                    size: 3 + Math.random() * 4,
+                    color: Math.random() > 0.4 ? '#ff2200' : '#ff9900',
+                    life: 0.3 + Math.random() * 0.25,
+                    maxLife: 0.55,
+                    gravity: 200
+                });
+            }
+        }
     }
 
     createImpact(x, y, soundType) {
@@ -1079,111 +1649,164 @@ export class VFXManager {
     }
 
     createValorStrike(player) {
-        // Blazing fissure on the ground
+        // Sequential volcanic magma pillars bursting forward along dash
+        const totalPillars = 4;
+        const spacing = 45;
+        for (let i = 1; i <= totalPillars; i++) {
+            const px = player.x + player.facing * (i * spacing);
+            this.effects.push({
+                type: 'fissure',
+                x: px,
+                y: player.y,
+                facing: player.facing,
+                length: 65,
+                life: 0.45 + i * 0.05,
+                maxLife: 0.45 + i * 0.05
+            });
+        }
+
+        // Blazing magma rush trail
+        this.trails.push({
+            points: [
+                { x: player.x - player.facing * 100, y: player.y - 30 },
+                { x: player.x - player.facing * 50, y: player.y - 32 },
+                { x: player.x, y: player.y - 35 },
+                { x: player.x + player.facing * 80, y: player.y - 35 }
+            ],
+            color: 'rgba(255, 60, 0, 0.9)',
+            width: 24,
+            life: 0.38,
+            maxLife: 0.38
+        });
+
+        // 25+ magma embers & rock shards
+        for (let i = 0; i < 26; i++) {
+            const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.8;
+            const speed = 140 + Math.random() * 220;
+            this.particles.push({
+                type: 'spark',
+                x: player.x + player.facing * (40 + Math.random() * 100),
+                y: player.y - 10,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 70,
+                size: 3 + Math.random() * 4,
+                color: Math.random() > 0.4 ? '#ff3300' : (Math.random() > 0.5 ? '#ffaa00' : '#ffffff'),
+                life: 0.35 + Math.random() * 0.3,
+                maxLife: 0.65,
+                gravity: 380
+            });
+        }
+
+        this.createImpact(player.x + player.facing * 120, player.y - 35, 'sword_impact_heavy');
+        this.createDust(player.x + player.facing * 100, player.y);
+    }
+
+    createIronBreaker(player) {
+        // Massive seismic ground slam with radial shockwaves
+        this.effects.push({
+            type: 'seismicShockwave',
+            x: player.x,
+            y: player.y,
+            intensity: 2.2,
+            life: 0.55,
+            maxLife: 0.55
+        });
+
+        // Ground fracture lines left and right
         this.effects.push({
             type: 'fissure',
             x: player.x,
             y: player.y,
-            facing: player.facing,
-            length: 160,
-            life: 0.45,
-            maxLife: 0.45
+            facing: 1,
+            length: 150,
+            life: 0.55,
+            maxLife: 0.55
+        });
+        this.effects.push({
+            type: 'fissure',
+            x: player.x,
+            y: player.y,
+            facing: -1,
+            length: 150,
+            life: 0.55,
+            maxLife: 0.55
         });
 
-        // Fire speed trail
-        const trail = {
-            points: [
-                { x: player.x - player.facing * 80, y: player.y - 35 },
-                { x: player.x - player.facing * 40, y: player.y - 35 },
-                { x: player.x, y: player.y - 35 },
-                { x: player.x + player.facing * 60, y: player.y - 35 }
-            ],
-            color: 'rgba(255, 90, 20, 0.85)',
-            width: 16,
-            life: 0.35,
-            maxLife: 0.35
-        };
-        this.trails.push(trail);
-
-        // Magma sparks
-        for (let i = 0; i < 16; i++) {
-            const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.5;
-            const speed = 120 + Math.random() * 160;
+        // 40+ flying stone boulders and volcanic debris
+        for (let i = 0; i < 42; i++) {
+            const angle = -Math.PI + Math.random() * Math.PI;
+            const speed = 160 + Math.random() * 280;
             this.particles.push({
-                x: player.x + player.facing * 50,
+                type: 'rock',
+                x: player.x + (Math.random() - 0.5) * 60,
+                y: player.y - 4,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 180,
+                size: 3.5 + Math.random() * 6.5,
+                rot: Math.random() * Math.PI * 2,
+                vRot: (Math.random() - 0.5) * 16,
+                color: Math.random() > 0.4 ? '#382a20' : (Math.random() > 0.5 ? '#574233' : '#ff4400'),
+                life: 0.55 + Math.random() * 0.35,
+                maxLife: 0.9,
+                gravity: 650
+            });
+        }
+
+        // Dense explosion of fiery sparks
+        for (let i = 0; i < 28; i++) {
+            const angle = -Math.PI + Math.random() * Math.PI;
+            const speed = 180 + Math.random() * 260;
+            this.particles.push({
+                type: 'spark',
+                x: player.x + (Math.random() - 0.5) * 30,
                 y: player.y - 10,
                 vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 60,
-                size: 3 + Math.random() * 4,
-                color: Math.random() > 0.4 ? '#ff5500' : '#ffcc00',
+                vy: Math.sin(angle) * speed - 80,
+                size: 2.5 + Math.random() * 3.5,
+                color: Math.random() > 0.3 ? '#ffbb22' : '#ffffff',
                 life: 0.35 + Math.random() * 0.25,
                 maxLife: 0.6,
-                gravity: 350
+                gravity: 450
             });
         }
 
-        this.createImpact(player.x + player.facing * 80, player.y - 35, 'sword_impact_heavy');
-        this.createDust(player.x + player.facing * 80, player.y);
-    }
-
-    createIronBreaker(player) {
-        // Massive seismic ground slam
-        this.createImpact(player.x, player.y - 10, 'sword_impact_heavy');
-
-        // Circular seismic shockwaves
-        for (let r = 1; r <= 3; r++) {
-            this.effects.push({
-                type: 'impact',
-                x: player.x,
-                y: player.y,
-                intensity: 1.8 + r * 0.4,
-                life: 0.35 + r * 0.08,
-                maxLife: 0.35 + r * 0.08
-            });
-        }
-
-        // Flying stone chunks
-        for (let i = 0; i < 30; i++) {
-            const angle = -Math.PI + Math.random() * Math.PI;
-            const speed = 140 + Math.random() * 220;
-            this.particles.push({
-                x: player.x + (Math.random() - 0.5) * 40,
-                y: player.y - 5,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 160,
-                size: 3 + Math.random() * 6,
-                color: Math.random() > 0.5 ? '#4a3d34' : '#2b231d',
-                life: 0.45 + Math.random() * 0.3,
-                maxLife: 0.75,
-                gravity: 500
-            });
-        }
-
-        // Golden impact flash
-        this.flashScreen('#ffd700', 0.15, 0.25);
+        this.flashScreen('#ff9900', 0.25, 0.4);
+        this.createDust(player.x, player.y);
     }
 
     createRageAura(player) {
         this.rageAuraTarget = player;
         this.rageAuraTimer = 0;
-        this.flashScreen('#ff2200', 0.35, 0.4);
+        this.flashScreen('#bb0000', 0.4, 0.45);
 
-        // Burst of flame pillars on activation
-        for (let i = 0; i < 35; i++) {
+        // Apocalyptic eruption of berserk flame pillars
+        for (let i = 0; i < 50; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 80 + Math.random() * 180;
+            const speed = 100 + Math.random() * 240;
             this.particles.push({
-                x: player.x,
+                type: 'spark',
+                x: player.x + (Math.random() - 0.5) * 30,
                 y: player.y - 35,
                 vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 120,
-                size: 4 + Math.random() * 6,
-                color: Math.random() > 0.4 ? '#ff3300' : '#ffaa00',
-                life: 0.5 + Math.random() * 0.35,
-                maxLife: 0.85,
-                gravity: 100
+                vy: Math.sin(angle) * speed - 160,
+                size: 3.5 + Math.random() * 5.5,
+                color: Math.random() > 0.35 ? '#ff2200' : (Math.random() > 0.5 ? '#ff8800' : '#ffffff'),
+                life: 0.6 + Math.random() * 0.4,
+                maxLife: 1.0,
+                gravity: 120
             });
         }
+
+        // Outward expanding ring of fire
+        this.effects.push({
+            type: 'aura',
+            x: player.x,
+            y: player.y - 20,
+            color: 'rgba(255, 30, 0',
+            maxRadius: 110,
+            life: 0.5,
+            maxLife: 0.5
+        });
     }
 
     removeRageAura() {

@@ -715,6 +715,69 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Top-Right Fullscreen Control (Minimalist Aesthetic) */
+.menu-top-right-cluster {
+    position: absolute;
+    top: 26px;
+    right: 32px;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    z-index: 10;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    animation: fadeInDown 0.8s var(--ease-out) forwards;
+}
+
+.menu-fs-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(12, 10, 16, 0.42);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(244, 208, 63, 0.24);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(247, 220, 111, 0.72);
+    cursor: pointer;
+    outline: none;
+    padding: 0;
+    opacity: 0.8;
+    transition: all 0.2s ease;
+}
+
+.menu-fs-btn:hover {
+    opacity: 1;
+    background: rgba(20, 16, 26, 0.78);
+    border-color: rgba(244, 208, 63, 0.65);
+    color: #f7dc6f;
+    box-shadow:
+        0 6px 16px rgba(0, 0, 0, 0.7),
+        0 0 12px rgba(244, 208, 63, 0.25);
+    transform: scale(1.05);
+}
+
+.menu-fs-btn:active {
+    transform: scale(0.95);
+    background: rgba(10, 8, 14, 0.85);
+}
+
+.menu-fs-btn .fs-icon {
+    width: 19px;
+    height: 19px;
+    stroke: currentColor;
+    stroke-width: 2;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
+    transition: transform 0.2s ease;
+}
+
+.menu-fs-btn:hover .fs-icon {
+    transform: scale(1.08);
+}
+
 /* Bottom-Left Action Buttons (Matching Reference) */
 .menu-bottom-left-cluster {
     position: absolute;
@@ -2401,12 +2464,18 @@ body {
    FULLSCREEN MODE
    ============================================================================ */
 
-:fullscreen #game-container {
+:fullscreen #game-container,
+#game-container:fullscreen,
+:-webkit-full-screen #game-container,
+#game-container:-webkit-full-screen {
     width: 100vw;
     height: 100vh;
 }
 
-:fullscreen #game-canvas {
+:fullscreen #game-canvas,
+#game-container:fullscreen #game-canvas,
+:-webkit-full-screen #game-canvas,
+#game-container:-webkit-full-screen #game-canvas {
     width: 100% !important;
     height: 100% !important;
     top: 0 !important;
