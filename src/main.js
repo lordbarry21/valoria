@@ -111,6 +111,7 @@ function init() {
         camera.x = 2240;
     } else {
         showScreen('main-menu');
+        audioManager.playMusic('menu');
     }
 
     requestAnimationFrame(gameLoop);
@@ -449,7 +450,7 @@ function startGame() {
     camera.snapToTarget();
 
     enemyManager.spawnWave();
-    audioManager.playMusic('combat');
+    audioManager.playMusic(enemyManager.stage === 2 ? 'stage2' : 'stage1');
 
     gameTime = 0;
 

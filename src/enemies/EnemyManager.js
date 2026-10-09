@@ -79,6 +79,7 @@ export class EnemyManager {
             roster = ['mushroom', 'brute', 'rat', 'rat', 'skeleton', 'skeleton'];
         } else if (this.waveNumber === 4) {
             this.stage = 2;
+            audioManager.playMusic('stage2');
             banner = 'Stage 2: Frozen Citadel - Aerial Dread';
             if (gameWorld?.bgImage) {
                 gameWorld.bgImage.src = 'Assets/Assets/PNG/Ice-Background.png';
@@ -135,6 +136,7 @@ export class EnemyManager {
         this.portalActive = false;
         this.portal = null;
         this.stage = 2;
+        audioManager.playMusic('stage2');
 
         if (gameWorld?.bgImage) {
             gameWorld.bgImage.src = 'Assets/Assets/PNG/Ice-Background.png';
