@@ -1062,7 +1062,7 @@ export class Player {
         }
         if (state === 'Dodge') {
             const p = 1 - Math.max(0, this.dodgeTimer / this.dodgeDuration);
-            return { cfg: KNIGHT_ANIMATIONS.dash, frame: Math.min(1, Math.floor(p * 2)) };
+            return { cfg: KNIGHT_ANIMATIONS.roll, frame: Math.min(11, Math.floor(p * 12)) };
         }
         if (state === 'Attack') {
             const total = this.currentAttack ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery) : 0.4;

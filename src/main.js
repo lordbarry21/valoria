@@ -34,16 +34,16 @@ let settingsReturnScreen = 'main-menu';
 // ============================================================================
 // CORE SYSTEMS
 // ============================================================================
-import { InputManager } from './core/InputManager.js?v=20261009_6';
-import { AudioManager } from './core/AudioManager.js?v=20261009_6';
-import { Camera } from './core/Camera.js?v=20261009_6';
-import { GameWorld } from './world/GameWorld.js?v=20261009_6';
-import { Player } from './player/Player.js?v=20261009_6';
-import { EnemyManager } from './enemies/EnemyManager.js?v=20261009_6';
-import { CombatSystem } from './combat/CombatSystem.js?v=20261009_6';
-import { VFXManager } from './effects/VFXManager.js?v=20261009_6';
-import { UIManager } from './ui/UIManager.js?v=20261009_6';
-import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js?v=20261009_6';
+import { InputManager } from './core/InputManager.js';
+import { AudioManager } from './core/AudioManager.js';
+import { Camera } from './core/Camera.js';
+import { GameWorld } from './world/GameWorld.js';
+import { Player } from './player/Player.js';
+import { EnemyManager } from './enemies/EnemyManager.js';
+import { CombatSystem } from './combat/CombatSystem.js';
+import { VFXManager } from './effects/VFXManager.js';
+import { UIManager } from './ui/UIManager.js';
+import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js';
 
 // Global references
 export let canvas, ctx;
@@ -97,6 +97,17 @@ function init() {
     setupInputHandlers();
     setupUIHandlers();
     syncFullscreenLabel();
+
+    window.valoria = {
+        get player() { return player; },
+        get inputManager() { return inputManager; },
+        get audioManager() { return audioManager; },
+        get currentState() { return currentState; },
+        get enemyManager() { return enemyManager; },
+        get combatSystem() { return combatSystem; },
+        get vfxManager() { return vfxManager; },
+        startGame
+    };
 
     const testMode = new URLSearchParams(window.location.search).get('test');
     if (testMode === 'portal') {
