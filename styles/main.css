@@ -765,10 +765,10 @@ body {
 }
 
 .menu-fs-btn .fs-icon {
-    width: 17px;
-    height: 17px;
+    width: 19px;
+    height: 19px;
     stroke: currentColor;
-    stroke-width: 1.75;
+    stroke-width: 2;
     pointer-events: none;
     filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
     transition: transform 0.2s ease;

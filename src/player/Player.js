@@ -11,7 +11,7 @@ import { PlayerStateMachine } from './PlayerStateMachine.js';
 import { CHARACTERS } from './CharacterData.js';
 import { getComboAttacks, createHeavyAttack } from './playerAttacks.js';
 
-const STEERABLE_STATES = new Set(['Idle', 'Walk', 'Run', 'Jump', 'Fall']);
+const STEERABLE_STATES = new Set(['Idle', 'Walk', 'Run', 'Jump', 'Fall', 'Land']);
 const SKILL_FRICTION = 600;
 const DEATH_SCREEN_DELAY = 1.5;
 
@@ -32,14 +32,24 @@ const KNIGHT_ANIMATIONS = {
     death: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Death.png', frames: 10, fps: 8, loop: false },
 };
 
-// Global image cache
+// Global image cache with instant ready detection
 const imageCache = {};
 function getImage(src) {
     if (!imageCache[src]) {
         const img = new Image();
+        const entry = {
+            img,
+            loaded: false
+        };
+        img.onload = () => { entry.loaded = true; };
         img.src = src;
-        imageCache[src] = { img, loaded: false };
-        img.onload = () => { imageCache[src].loaded = true; };
+        if (img.complete && img.naturalWidth > 0) {
+            entry.loaded = true;
+        }
+        imageCache[src] = entry;
+    }
+    if (!imageCache[src].loaded && imageCache[src].img.complete && imageCache[src].img.naturalWidth > 0) {
+        imageCache[src].loaded = true;
     }
     return imageCache[src];
 }

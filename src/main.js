@@ -182,28 +182,46 @@ function openSettings(returnScreen) {
 
 function setupUIHandlers() {
     // Start Game: launches battle directly with the currently selected champion
-    const fsModal = document.getElementById('fullscreen-modal');
     document.getElementById('btn-start').addEventListener('click', () => {
         audioManager.playSFX('ui_click');
         player.setCharacter(selectedChampion);
-        if (!isGameFullscreen()) {
-            fsModal?.classList.remove('hidden');
-        } else {
-            startGame();
+        startGame();
+    });
+
+    // Main Menu interactive hero actions & launch shortcut
+    window.addEventListener('keydown', (e) => {
+        if (currentState === GameState.MENU) {
+            const charSelect = document.getElementById('char-select-screen');
+            const settingsMenu = document.getElementById('settings-menu');
+            const isSubmenuOpen = (!charSelect?.classList.contains('hidden')) || (!settingsMenu?.classList.contains('hidden'));
+            if (!isSubmenuOpen) {
+                if (e.code === 'Enter') {
+                    e.preventDefault();
+                    audioManager.playSFX('ui_click');
+                    player.setCharacter(selectedChampion);
+                    startGame();
+                } else if (e.code === 'KeyJ' || e.code === 'KeyC' || e.code === 'KeyZ') {
+                    cemeteryMenuRenderer?.triggerHeroAction('attack');
+                    audioManager.playSFX('sword_swing_light');
+                } else if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
+                    cemeteryMenuRenderer?.triggerHeroAction('jump');
+                    audioManager.playSFX('player_jump');
+                }
+            }
         }
     });
 
-    document.getElementById('btn-fs-yes')?.addEventListener('click', async () => {
-        fsModal?.classList.add('hidden');
-        await requestGameFullscreen();
-        player.setCharacter(selectedChampion);
-        startGame();
-    });
-
-    document.getElementById('btn-fs-no')?.addEventListener('click', () => {
-        fsModal?.classList.add('hidden');
-        player.setCharacter(selectedChampion);
-        startGame();
+    // Clicking the champion on the plateau triggers action preview
+    canvas?.addEventListener('click', (e) => {
+        if (currentState === GameState.MENU) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const canvasY = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const clicked = cemeteryMenuRenderer?.handleClick(canvasX, canvasY);
+            if (clicked === 'hero_clicked') {
+                audioManager.playSFX('sword_swing_light');
+            }
+        }
     });
 
     // Circular Hero Select Button
