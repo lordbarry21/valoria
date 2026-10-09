@@ -761,6 +761,7 @@ export class Player {
         vfxManager.createValoriaRageBlast(this);
         camera.shakeHeavy();
         camera.impactZoom(0.2, 0.45);
+        this.heal(35);
         this.notify('VALORIA RAGE: HELLFIRE ERUPTION!', '#ff3300');
     }
 
@@ -932,7 +933,21 @@ export class Player {
     }
 
     heal(amount) {
+        if (this.isDead || amount <= 0) return;
+        const oldHealth = this.health;
         this.health = Math.min(this.maxHealth, this.health + amount);
+        const gained = Math.round(this.health - oldHealth);
+        if (gained > 0) {
+            this.floatingTexts.push({
+                text: `+${gained} HP`,
+                color: '#34d399',
+                x: this.x + (Math.random() - 0.5) * 20,
+                y: this.y - this.height - 18,
+                life: 0.9,
+                maxLife: 0.9
+            });
+            vfxManager?.createHealGlow?.(this);
+        }
     }
 
     gainRage(amount) {

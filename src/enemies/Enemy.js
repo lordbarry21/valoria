@@ -53,6 +53,13 @@ export class Enemy {
         this.canClimbLadders = true;
 
         this.animTime = 0;
+
+        // Status effects: Fire Aspect (Burn)
+        this.burnTimer = 0;
+        this.burnDuration = 0;
+        this.burnTickTimer = 0;
+        this.burnTickDamage = 4;
+        this.burnParticleTimer = 0;
     }
 
     init() {
@@ -70,6 +77,11 @@ export class Enemy {
         this.knockbackVelX = 0;
         this.vx = 0;
         this.currentLadder = null;
+
+        this.burnTimer = 0;
+        this.burnDuration = 0;
+        this.burnTickTimer = 0;
+        this.burnParticleTimer = 0;
     }
 
     update(dt) {
@@ -81,6 +93,10 @@ export class Enemy {
         this.animTime += dt;
         this.stateTime += dt;
         this.applyKnockback(dt);
+
+        if (!this.isDead && this.burnTimer > 0) {
+            this.updateBurn(dt);
+        }
 
         if (this.isDead) {
             this.deathTimer += dt;
@@ -312,6 +328,50 @@ export class Enemy {
         };
     }
 
+    applyBurn(duration = 3.5, tickDamage = 4) {
+        if (this.isDead) return;
+        this.burnTimer = Math.max(this.burnTimer, duration);
+        this.burnDuration = Math.max(this.burnDuration, duration);
+        this.burnTickDamage = tickDamage;
+        if (this.burnTickTimer <= 0) this.burnTickTimer = 0.35;
+        vfxManager?.createBurnIgnite?.(this.x, this.y - this.height * 0.5);
+    }
+
+    updateBurn(dt) {
+        this.burnTimer -= dt;
+        this.burnTickTimer -= dt;
+        this.burnParticleTimer -= dt;
+
+        if (this.burnParticleTimer <= 0) {
+            this.burnParticleTimer = 0.08;
+            vfxManager?.createBurnParticle?.(this.x, this.y, this.width, this.height);
+        }
+
+        if (this.burnTickTimer <= 0) {
+            this.burnTickTimer = 0.35;
+            this.health -= this.burnTickDamage * this.damageTakenMultiplier;
+
+            if (player && player.floatingTexts) {
+                player.floatingTexts.push({
+                    text: `-${this.burnTickDamage}`,
+                    color: '#ff4400',
+                    x: this.x + (Math.random() - 0.5) * 20,
+                    y: this.y - this.height - 12,
+                    life: 0.6,
+                    maxLife: 0.6
+                });
+            }
+
+            if (this.health <= 0) {
+                this.die();
+            }
+        }
+
+        if (this.burnTimer <= 0) {
+            this.burnTimer = 0;
+        }
+    }
+
     takeDamage(amount, knockbackForce, hitStun, direction) {
         if (this.isDead) return;
 
@@ -345,6 +405,11 @@ export class Enemy {
 
         if (this.hitStunTime > 0.1) ctx.globalAlpha = 0.7;
         if (this.isDead) ctx.globalAlpha = Math.max(0, 1 - this.deathTimer / DEATH_FADE_DURATION);
+
+        if (this.burnTimer > 0 && !this.isDead) {
+            ctx.shadowColor = '#ff3300';
+            ctx.shadowBlur = 14 + Math.sin(this.animTime * 18) * 6;
+        }
 
         this.drawBody(ctx);
         ctx.restore();

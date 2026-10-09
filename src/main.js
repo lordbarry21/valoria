@@ -557,6 +557,7 @@ function render() {
 
     gameWorld.render(ctx);
     enemyManager.render(ctx);
+    combatSystem.render(ctx);
     player.render(ctx);
     vfxManager.render(ctx);
 

@@ -963,25 +963,26 @@ export class VFXManager {
     }
 
     renderFlameSlash(ctx, effect, progress) {
-        const { x, y, facing, size = 95 } = effect;
+        const { x, y, facing, size = 125 } = effect;
         const alpha = Math.max(0, 1 - progress);
 
         ctx.save();
-        ctx.translate(x, y);
+        // Fiery cleave wave physically surges forward
+        ctx.translate(x + facing * (progress * 85), y);
         ctx.scale(facing, 1);
 
-        // Blazing curved arc
-        for (let i = 0; i < 3; i++) {
-            const arcRadius = size + i * 16;
-            const startAngle = -Math.PI * 0.65;
-            const endAngle = startAngle + (0.4 + progress * 0.8) * Math.PI;
+        // Blazing forward-reaching curved arc
+        for (let i = 0; i < 4; i++) {
+            const arcRadius = size + i * 20;
+            const startAngle = -Math.PI * 0.72;
+            const endAngle = startAngle + (0.55 + progress * 0.75) * Math.PI;
 
             ctx.beginPath();
-            ctx.arc(10, -35, arcRadius, startAngle, endAngle);
-            ctx.lineWidth = (1 - progress) * (14 - i * 3);
+            ctx.arc(35, -35, arcRadius, startAngle, endAngle);
+            ctx.lineWidth = (1 - progress) * (18 - i * 3.5);
             ctx.strokeStyle = i === 0
-                ? `rgba(255, 255, 200, ${alpha})`
-                : (i === 1 ? `rgba(255, 140, 20, ${alpha * 0.85})` : `rgba(255, 30, 0, ${alpha * 0.6})`);
+                ? `rgba(255, 255, 220, ${alpha})`
+                : (i === 1 ? `rgba(255, 180, 40, ${alpha * 0.9})` : (i === 2 ? `rgba(255, 60, 0, ${alpha * 0.75})` : `rgba(180, 0, 0, ${alpha * 0.4})`));
             ctx.stroke();
         }
 
@@ -1328,25 +1329,75 @@ export class VFXManager {
             x: player.x,
             y: player.y,
             facing: player.facing,
-            size: 105,
-            life: 0.22,
-            maxLife: 0.22
+            size: 130,
+            life: 0.25,
+            maxLife: 0.25
         });
 
-        // Flame sparks trailing forward
-        for (let i = 0; i < 14; i++) {
-            const angle = -0.3 + (Math.random() - 0.5) * 0.8;
-            const speed = 180 + Math.random() * 220;
+        // Flame sparks trailing forward into the slash arc
+        for (let i = 0; i < 20; i++) {
+            const angle = -0.3 + (Math.random() - 0.5) * 0.9;
+            const speed = 220 + Math.random() * 260;
             this.particles.push({
-                x: player.x + player.facing * 40,
-                y: player.y - 35 + (Math.random() - 0.5) * 30,
+                x: player.x + player.facing * 50,
+                y: player.y - 35 + (Math.random() - 0.5) * 40,
                 vx: player.facing * Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed - 40,
+                size: 3 + Math.random() * 5,
+                color: Math.random() > 0.4 ? '#ff3a00' : (Math.random() > 0.5 ? '#ffaa00' : '#ffe066'),
+                life: 0.28 + Math.random() * 0.2,
+                maxLife: 0.48,
+                gravity: 100
+            });
+        }
+    }
+
+    createBurnParticle(x, y, width, height) {
+        const px = x + (Math.random() - 0.5) * (width || 30);
+        const py = y - Math.random() * (height || 50);
+        this.particles.push({
+            x: px,
+            y: py,
+            vx: (Math.random() - 0.5) * 35,
+            vy: -40 - Math.random() * 50,
+            size: 2.5 + Math.random() * 3.5,
+            color: Math.random() > 0.4 ? '#ff3300' : (Math.random() > 0.5 ? '#ff8800' : '#ffee33'),
+            life: 0.35 + Math.random() * 0.25,
+            maxLife: 0.6,
+            gravity: -15
+        });
+    }
+
+    createBurnIgnite(x, y) {
+        for (let i = 0; i < 16; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 70 + Math.random() * 120;
+            this.particles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 40,
                 size: 3 + Math.random() * 4,
-                color: Math.random() > 0.4 ? '#ff4400' : '#ffcc00',
-                life: 0.25 + Math.random() * 0.2,
-                maxLife: 0.45,
-                gravity: 120
+                color: Math.random() > 0.5 ? '#ff3300' : '#ffaa00',
+                life: 0.3 + Math.random() * 0.25,
+                maxLife: 0.55,
+                gravity: 80
+            });
+        }
+    }
+
+    createHealGlow(player) {
+        for (let i = 0; i < 12; i++) {
+            this.particles.push({
+                x: player.x + (Math.random() - 0.5) * 45,
+                y: player.y - Math.random() * (player.height || 60),
+                vx: (Math.random() - 0.5) * 25,
+                vy: -55 - Math.random() * 45,
+                size: 2.5 + Math.random() * 3.5,
+                color: Math.random() > 0.4 ? '#34d399' : '#a7f3d0',
+                life: 0.45 + Math.random() * 0.3,
+                maxLife: 0.75,
+                gravity: -10
             });
         }
     }
