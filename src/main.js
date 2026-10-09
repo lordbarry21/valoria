@@ -34,16 +34,16 @@ let settingsReturnScreen = 'main-menu';
 // ============================================================================
 // CORE SYSTEMS
 // ============================================================================
-import { InputManager } from './core/InputManager.js?v=20261009_5';
-import { AudioManager } from './core/AudioManager.js?v=20261009_5';
-import { Camera } from './core/Camera.js?v=20261009_5';
-import { GameWorld } from './world/GameWorld.js?v=20261009_5';
-import { Player } from './player/Player.js?v=20261009_5';
-import { EnemyManager } from './enemies/EnemyManager.js?v=20261009_5';
-import { CombatSystem } from './combat/CombatSystem.js?v=20261009_5';
-import { VFXManager } from './effects/VFXManager.js?v=20261009_5';
-import { UIManager } from './ui/UIManager.js?v=20261009_5';
-import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js?v=20261009_5';
+import { InputManager } from './core/InputManager.js?v=20261009_6';
+import { AudioManager } from './core/AudioManager.js?v=20261009_6';
+import { Camera } from './core/Camera.js?v=20261009_6';
+import { GameWorld } from './world/GameWorld.js?v=20261009_6';
+import { Player } from './player/Player.js?v=20261009_6';
+import { EnemyManager } from './enemies/EnemyManager.js?v=20261009_6';
+import { CombatSystem } from './combat/CombatSystem.js?v=20261009_6';
+import { VFXManager } from './effects/VFXManager.js?v=20261009_6';
+import { UIManager } from './ui/UIManager.js?v=20261009_6';
+import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js?v=20261009_6';
 
 // Global references
 export let canvas, ctx;
@@ -188,38 +188,19 @@ function setupUIHandlers() {
         startGame();
     });
 
-    // Main Menu interactive hero actions & launch shortcut
+    // Enter / Space to start game from main menu
     window.addEventListener('keydown', (e) => {
         if (currentState === GameState.MENU) {
             const charSelect = document.getElementById('char-select-screen');
             const settingsMenu = document.getElementById('settings-menu');
             const isSubmenuOpen = (!charSelect?.classList.contains('hidden')) || (!settingsMenu?.classList.contains('hidden'));
             if (!isSubmenuOpen) {
-                if (e.code === 'Enter') {
+                if (e.code === 'Enter' || e.code === 'Space') {
                     e.preventDefault();
                     audioManager.playSFX('ui_click');
                     player.setCharacter(selectedChampion);
                     startGame();
-                } else if (e.code === 'KeyJ' || e.code === 'KeyC' || e.code === 'KeyZ') {
-                    cemeteryMenuRenderer?.triggerHeroAction('attack');
-                    audioManager.playSFX('sword_swing_light');
-                } else if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
-                    cemeteryMenuRenderer?.triggerHeroAction('jump');
-                    audioManager.playSFX('player_jump');
                 }
-            }
-        }
-    });
-
-    // Clicking the champion on the plateau triggers action preview
-    canvas?.addEventListener('click', (e) => {
-        if (currentState === GameState.MENU) {
-            const rect = canvas.getBoundingClientRect();
-            const canvasX = (e.clientX - rect.left) * (canvas.width / rect.width);
-            const canvasY = (e.clientY - rect.top) * (canvas.height / rect.height);
-            const clicked = cemeteryMenuRenderer?.handleClick(canvasX, canvasY);
-            if (clicked === 'hero_clicked') {
-                audioManager.playSFX('sword_swing_light');
             }
         }
     });

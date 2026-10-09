@@ -44,47 +44,48 @@ export class AudioManager {
     setupAudioContext() {
         // Wait for user interaction to unlock browser audio
         const initAudio = () => {
-            if (!this.initialized) {
-                try {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (this.initialized) return;
 
-                    // Create gain nodes
-                    this.masterGain = this.ctx.createGain();
-                    this.musicGain = this.ctx.createGain();
-                    this.sfxGain = this.ctx.createGain();
+            try {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-                    this.masterGain.connect(this.ctx.destination);
-                    this.musicGain.connect(this.masterGain);
-                    this.sfxGain.connect(this.masterGain);
+                // Create gain nodes
+                this.masterGain = this.ctx.createGain();
+                this.musicGain = this.ctx.createGain();
+                this.sfxGain = this.ctx.createGain();
 
-                    // Set initial volumes
-                    this.masterGain.gain.value = this.masterVolume;
-                    this.musicGain.gain.value = this.musicVolume;
-                    this.sfxGain.gain.value = this.sfxVolume;
+                this.masterGain.connect(this.ctx.destination);
+                this.musicGain.connect(this.masterGain);
+                this.sfxGain.connect(this.masterGain);
 
-                    this.initialized = true;
-                    this.generateAllSounds();
-                } catch (e) {
-                    console.warn('Audio context creation failed:', e);
-                }
+                // Set initial volumes
+                this.masterGain.gain.value = this.masterVolume;
+                this.musicGain.gain.value = this.musicVolume;
+                this.sfxGain.gain.value = this.sfxVolume;
+
+                this.initialized = true;
+                this.generateAllSounds();
+
+                // Remove capture listeners once unlocked
+                window.removeEventListener('pointerdown', initAudio, true);
+                window.removeEventListener('keydown', initAudio, true);
+            } catch (e) {
+                console.warn('Audio context creation failed:', e);
             }
 
-            if (this.ctx && this.ctx.state === 'suspended') {
+            if (this.ctx && this.ctx.state === 'suspended' && !this.isMusicPaused) {
                 this.ctx.resume().catch(() => {});
             }
 
-            // Start queued music or resume paused music
-            if (this.pendingMusic) {
+            if (this.pendingMusic && !this.isMusicPaused) {
                 const track = this.pendingMusic;
                 this.pendingMusic = null;
                 this.playMusic(track);
-            } else if (this.activeAudio && this.activeAudio.paused && this.currentMusic) {
-                this.activeAudio.play().catch(() => {});
             }
         };
 
-        window.addEventListener('pointerdown', initAudio, { capture: true, passive: true });
-        window.addEventListener('keydown', initAudio, { capture: true, passive: true });
+        window.addEventListener('pointerdown', initAudio, true);
+        window.addEventListener('keydown', initAudio, true);
     }
 
     /**
@@ -843,7 +844,7 @@ export class AudioManager {
     }
 
     playMusic(musicType) {
-        if (!musicType) return;
+        if (!musicType || this.isMusicPaused) return;
 
         const normalizedType = (musicType === 'combat' ? 'stage1' : (musicType === 'ice' ? 'stage2' : musicType));
 
@@ -866,57 +867,29 @@ export class AudioManager {
         // Crossfade out previous audio track
         if (this.activeAudio && this.activeAudio !== newAudio) {
             const oldAudio = this.activeAudio;
-            const startVol = oldAudio.volume;
-            const fadeOutDuration = 600;
-            const startTime = performance.now();
-
-            const fadeOutStep = () => {
-                const elapsed = performance.now() - startTime;
-                const progress = Math.min(1, elapsed / fadeOutDuration);
-                oldAudio.volume = Math.max(0, startVol * (1 - progress));
-                if (progress < 1) {
-                    requestAnimationFrame(fadeOutStep);
-                } else {
-                    oldAudio.pause();
-                    oldAudio.currentTime = 0;
-                }
-            };
-            requestAnimationFrame(fadeOutStep);
+            oldAudio.pause();
+            oldAudio.currentTime = 0;
         }
 
-        // Fade in new audio track
+        // Play new audio track
         this.activeAudio = newAudio;
-        newAudio.volume = 0;
+        newAudio.volume = this.getEffectiveMusicVolume();
 
         const playPromise = newAudio.play();
         if (playPromise !== undefined) {
             playPromise.then(() => {
                 this.pendingMusic = null;
-                const targetVol = this.getEffectiveMusicVolume();
-                const fadeInDuration = 800;
-                const startTime = performance.now();
-
-                const fadeInStep = () => {
-                    if (this.activeAudio !== newAudio) return;
-                    const elapsed = performance.now() - startTime;
-                    const progress = Math.min(1, elapsed / fadeInDuration);
-                    newAudio.volume = Math.min(1, targetVol * progress);
-                    if (progress < 1) {
-                        requestAnimationFrame(fadeInStep);
-                    } else {
-                        newAudio.volume = targetVol;
-                    }
-                };
-                requestAnimationFrame(fadeInStep);
-            }).catch(err => {
-                // Autoplay policy prevented playback: queued into pendingMusic for next user gesture
+                if (this.isMusicPaused) {
+                    newAudio.pause();
+                }
+            }).catch(() => {
                 this.pendingMusic = normalizedType;
             });
         }
     }
 
     playSynthMusic(musicType) {
-        if (!this.initialized || !this.ctx) return;
+        if (!this.initialized || !this.ctx || this.isMusicPaused) return;
         this.stopSynthMusic();
         this.resumeMusic();
 
@@ -950,21 +923,34 @@ export class AudioManager {
             this.activeAudio.currentTime = 0;
             this.activeAudio = null;
         }
+        for (const audio of Object.values(this.audioElements)) {
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+        }
         this.currentMusic = null;
         this.pendingMusic = null;
         this.stopSynthMusic();
     }
 
     pauseMusic() {
+        this.isMusicPaused = true;
         if (this.ctx && this.ctx.state === 'running') {
             this.ctx.suspend().catch(() => {});
         }
-        if (this.activeAudio && !this.activeAudio.paused) {
+        if (this.activeAudio) {
             this.activeAudio.pause();
+        }
+        for (const audio of Object.values(this.audioElements)) {
+            if (audio && !audio.paused) {
+                audio.pause();
+            }
         }
     }
 
     resumeMusic() {
+        this.isMusicPaused = false;
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume().catch(() => {});
         }

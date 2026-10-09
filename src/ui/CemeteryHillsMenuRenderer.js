@@ -21,14 +21,6 @@ export class CemeteryHillsMenuRenderer {
         this.heroSprites.blonde.src = 'girl warior.png';
         this.heroSprites.brown.src = 'Girl Warior brown hair/Warrior/SpriteSheet/Warrior_Sheet-Effect.png';
 
-        this.knightAttackSprite = new Image();
-        this.knightAttackSprite.src = 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Attack.png';
-        this.knightJumpSprite = new Image();
-        this.knightJumpSprite.src = 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Jump.png';
-
-        this.actionState = 'idle';
-        this.actionTimer = 0;
-
         this.heroes = [
             {
                 id: 'knight',
@@ -107,31 +99,12 @@ export class CemeteryHillsMenuRenderer {
         return { cursor: 'default', changed: false };
     }
 
-    triggerHeroAction(action = 'attack') {
-        this.actionState = action;
-        this.actionTimer = action === 'jump' ? 0.55 : 0.45;
-    }
-
-    handleClick(x, y) {
-        if (this.heroHitbox) {
-            const hb = this.heroHitbox;
-            if (x >= hb.x && x <= hb.x + hb.width && y >= hb.y && y <= hb.y + hb.height) {
-                this.triggerHeroAction('attack');
-                return 'hero_clicked';
-            }
-        }
+    handleClick() {
         return null;
     }
 
     render(ctx, width, height, dt = 0.016) {
         this.time += dt;
-
-        if (this.actionTimer > 0) {
-            this.actionTimer -= dt;
-            if (this.actionTimer <= 0) {
-                this.actionState = 'idle';
-            }
-        }
 
         // 1. Draw Full Background Scene from Gemini_Generated_Image_h3361hh3361hh336.jpg
         const { renderX, renderY, renderW, renderH } = this.renderBackground(ctx, width, height);
@@ -218,70 +191,26 @@ export class CemeteryHillsMenuRenderer {
         ctx.stroke();
         ctx.restore();
 
-        // 3. Render Hero Sprite (Idle, or interactive Attack / Jump preview)
-        let activeSprite = sprite;
-        let srcX = 0;
-        let srcY = 0;
-        let jumpOffsetY = 0;
-
-        if (this.actionState === 'jump') {
-            const p = 1 - Math.max(0, this.actionTimer / 0.55);
-            jumpOffsetY = -Math.sin(p * Math.PI) * 45;
-
-            if (hero.id === 'knight') {
-                activeSprite = this.knightJumpSprite;
-                const f = p < 0.35 ? 0 : (p < 0.7 ? 1 : 2);
-                srcX = f * hero.frameW;
-                srcY = 0;
-            } else {
-                srcX = 2 * hero.frameW;
-                srcY = 1 * hero.frameH;
-            }
-        } else if (this.actionState === 'attack') {
-            const p = 1 - Math.max(0, this.actionTimer / 0.45);
-
-            if (hero.id === 'knight') {
-                activeSprite = this.knightAttackSprite;
-                const f = Math.min(3, Math.floor(p * 4));
-                srcX = f * hero.frameW;
-                srcY = 0;
-            } else {
-                const f = Math.min(3, Math.floor(p * 4));
-                srcX = (2 + f) * hero.frameW;
-                srcY = 2 * hero.frameH;
-            }
-        } else {
-            // Idle
-            const frameIndex = Math.floor(this.time * hero.fps) % hero.totalFrames;
-            srcX = frameIndex * hero.frameW;
-            srcY = 0;
-        }
-
-        const actualDrawY = Math.floor(drawY + jumpOffsetY);
-
-        // Update hitbox for clicking
-        this.heroHitbox = {
-            x: drawX,
-            y: actualDrawY,
-            width: renderW,
-            height: renderH
-        };
-
-        if (activeSprite && activeSprite.complete && activeSprite.naturalWidth > 0) {
+        // 3. Render Hero Idle Sprite (with 10% slowed female idle)
+        if (sprite.complete && sprite.naturalWidth > 0) {
             ctx.save();
             ctx.imageSmoothingEnabled = false;
 
+            const frameIndex = Math.floor(this.time * hero.fps) % hero.totalFrames;
+            const srcX = frameIndex * hero.frameW;
+            const srcY = 0;
+
             ctx.drawImage(
-                activeSprite,
+                sprite,
                 srcX, srcY, hero.frameW, hero.frameH,
-                drawX, actualDrawY, renderW, renderH
+                drawX, drawY, renderW, renderH
             );
             ctx.restore();
         }
 
         // 4. Exact Nameplate Positioned Directly and Tightly Above the Hero's Head
         const headHeight = (hero.anchorOffsetY - hero.headTopFrameY) * hero.scale;
-        const nameplateBottomY = posY + jumpOffsetY - headHeight - 10;
+        const nameplateBottomY = posY - headHeight - 10;
         this.renderNameplate(ctx, posX, nameplateBottomY, hero);
     }
 

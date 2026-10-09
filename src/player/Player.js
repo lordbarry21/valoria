@@ -26,13 +26,12 @@ const KNIGHT_ANIMATIONS = {
     attack3: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_AttackCombo2hit.png', frames: 10, fps: 14, loop: false },
     crouch_attack: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_CrouchAttack.png', frames: 4, fps: 10, loop: false },
     dash: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Dash.png', frames: 2, fps: 10, loop: false },
-    slide_full: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_SlideFull.png', frames: 4, fps: 12, loop: false },
     roll: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Roll.png', frames: 12, fps: 20, loop: false },
     hit: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Hit.png', frames: 1, fps: 1, loop: false },
     death: { file: 'FreeKnight/Colour1/Outline/120x80_PNGSheets/_Death.png', frames: 10, fps: 8, loop: false },
 };
 
-// Global image cache with instant ready detection
+// Global image cache
 const imageCache = {};
 function getImage(src) {
     if (!imageCache[src]) {
@@ -607,13 +606,6 @@ export class Player {
         this.heavyChargeTime = Math.min(this.heavyChargeMax, this.heavyChargeTime + dt);
         this.applyFriction(this.deceleration, dt);
 
-        if (this.characterId === 'knight') {
-            const chargePercent = this.heavyChargeTime / this.heavyChargeMax;
-            if (chargePercent > 0.6 && Math.random() < 0.28) {
-                camera.shake(chargePercent * 3.0, 0.06);
-            }
-        }
-
         const released = !inputManager.isHeavyAttackHeld();
         if (released || this.heavyChargeTime >= this.heavyChargeMax) {
             this.releaseHeavyAttack();
@@ -633,11 +625,8 @@ export class Player {
         this.vx = this.facing * this.currentAttack.moveForce;
 
         audioManager.playSFX('sword_swing_heavy');
-        vfxManager.createHeavySwing(this, this.currentAttack, chargePercent);
+        vfxManager.createHeavySwing(this, this.currentAttack);
         camera.shakeHeavy();
-        if (chargePercent > 0.5) {
-            camera.impactZoom(0.12 + chargePercent * 0.12, 0.28);
-        }
     }
 
     dodge() {
@@ -717,32 +706,31 @@ export class Player {
     useValorStrike() {
         this.beginSkill({
             id: 'valor_strike',
-            damage: 42 * this.character.stats.damageMultiplier,
-            startup: 0.1, active: 0.25, recovery: 0.22,
-            hitbox: { x: 80, y: -35, width: 155, height: 55 },
-            knockback: 450, hitStun: 0.55, hitStop: 55, moveForce: 420,
+            damage: 40 * this.character.stats.damageMultiplier,
+            startup: 0.1, active: 0.25, recovery: 0.2,
+            hitbox: { x: 75, y: -35, width: 140, height: 50 },
+            knockback: 420, hitStun: 0.5, hitStop: 50, moveForce: 380,
             swingSound: 'valor_strike', impactSound: 'sword_impact_heavy', screenShake: 'heavy', rageGain: 15
         });
-        this.vx = this.facing * 440;
+        this.vx = this.facing * 420;
         audioManager.playSFX('valor_strike');
         vfxManager.createValorStrike(this);
-        camera.shake(14, 0.25);
+        camera.shakeMedium();
     }
 
     useIronBreaker() {
         this.beginSkill({
             id: 'iron_breaker',
-            damage: 70 * this.character.stats.damageMultiplier,
-            startup: 0.32, active: 0.32, recovery: 0.4,
-            hitbox: { x: 35, y: -25, width: 210, height: 85 },
-            knockback: 600, hitStun: 0.85, hitStop: 90, moveForce: 0,
+            damage: 65 * this.character.stats.damageMultiplier,
+            startup: 0.35, active: 0.3, recovery: 0.4,
+            hitbox: { x: 30, y: -25, width: 180, height: 75 },
+            knockback: 550, hitStun: 0.8, hitStop: 80, moveForce: 0,
             swingSound: 'iron_breaker', impactSound: 'sword_impact_heavy', screenShake: 'heavy', rageGain: 20
         });
         this.vx = 0;
         audioManager.playSFX('iron_breaker');
         vfxManager.createIronBreaker(this);
-        camera.impactZoom(0.24, 0.4);
-        camera.shake(18, 0.35);
+        camera.impactZoom(0.2, 0.35);
     }
 
     useValoriaRage() {
@@ -752,9 +740,8 @@ export class Player {
         this.beginSkill(null);
         audioManager.playSFX('valoria_rage_start');
         vfxManager.createRageAura(this);
-        camera.shake(20, 0.45);
-        camera.impactZoom(0.2, 0.35);
-        this.notify('VALORIA RAGE!', '#ff2200');
+        camera.shakeHeavy();
+        this.notify('VALORIA RAGE!', '#ff4400');
     }
 
     endRage() {
@@ -1055,68 +1042,11 @@ export class Player {
         const anchorX = this.character.anchorX;
         const anchorY = this.character.anchorY;
 
-        let drawOffsetX = -anchorX * scale;
-        let drawOffsetY = -anchorY * scale;
-
-        // Kinetic tremor when charging heavy attack
-        if (this.isChargingHeavy) {
-            const charge = this.heavyChargeTime / this.heavyChargeMax;
-            drawOffsetX += (Math.random() - 0.5) * (charge * 3.5);
-            drawOffsetY += (Math.random() - 0.5) * (charge * 2.5);
-        }
-
         ctx.drawImage(
             sheet.img,
             anim.frame * frameW, 0, frameW, frameH,
-            drawOffsetX, drawOffsetY, frameW * scale, frameH * scale
+            -anchorX * scale, -anchorY * scale, frameW * scale, frameH * scale
         );
-
-        if (this.isChargingHeavy) {
-            this.renderHeavyChargeAura(ctx);
-        }
-    }
-
-    renderHeavyChargeAura(ctx) {
-        const charge = this.heavyChargeTime / this.heavyChargeMax;
-        const t = this.animTime;
-        ctx.save();
-
-        // Glowing broadsword blade outline while held high overhead (blade around x=12, y=-74)
-        const bladeX = 12;
-        const bladeY = -74;
-
-        ctx.shadowColor = charge > 0.85 ? '#ff2200' : '#ff9900';
-        ctx.shadowBlur = 18 * charge;
-        ctx.strokeStyle = `rgba(255, ${Math.floor(180 - charge * 80)}, 0, ${charge * 0.9})`;
-        ctx.lineWidth = 3 + charge * 4;
-        ctx.beginPath();
-        ctx.moveTo(bladeX - 6, bladeY + 20);
-        ctx.lineTo(bladeX + 4, bladeY - 24);
-        ctx.stroke();
-
-        // Sucking inward rage particles
-        for (let i = 0; i < 4; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 35 * (1 - (t * 4 + i * 0.25) % 1);
-            const px = bladeX + Math.cos(angle) * dist;
-            const py = bladeY + Math.sin(angle) * dist;
-            ctx.fillStyle = charge > 0.8 ? '#ff3300' : '#ffcc00';
-            ctx.beginPath();
-            ctx.arc(px, py, 1.5 + charge * 1.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Max charge blinding gleam
-        if (charge >= 0.95) {
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = '#ffffff';
-            ctx.shadowBlur = 15;
-            ctx.beginPath();
-            ctx.arc(bladeX + 4, bladeY - 24, 4 + Math.sin(t * 20) * 1.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        ctx.restore();
     }
 
     getKnightAnimation() {
@@ -1132,7 +1062,7 @@ export class Player {
         }
         if (state === 'Dodge') {
             const p = 1 - Math.max(0, this.dodgeTimer / this.dodgeDuration);
-            return { cfg: KNIGHT_ANIMATIONS.roll, frame: Math.min(11, Math.floor(p * 12)) };
+            return { cfg: KNIGHT_ANIMATIONS.dash, frame: Math.min(1, Math.floor(p * 2)) };
         }
         if (state === 'Attack') {
             const total = this.currentAttack ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery) : 0.4;
@@ -1147,33 +1077,23 @@ export class Player {
         }
         if (state === 'HeavyAttack') {
             if (this.isChargingHeavy) {
-                // Mighty 2-handed overhead raise stance while gathering wrath!
-                return { cfg: KNIGHT_ANIMATIONS.attack2, frame: 1 };
+                const charge = this.heavyChargeTime / this.heavyChargeMax;
+                return { cfg: KNIGHT_ANIMATIONS.crouch_attack, frame: Math.min(1, Math.floor(charge * 2)) };
             }
             const total = this.currentAttack ? (this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery) : 0.5;
             const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
-            // Frames 2, 3, 4, 5: massive overhead slam crashing down into earth
-            return { cfg: KNIGHT_ANIMATIONS.attack2, frame: Math.min(5, 2 + Math.floor(p * 4)) };
+            return { cfg: KNIGHT_ANIMATIONS.crouch_attack, frame: Math.min(3, 2 + Math.floor(p * 2)) };
         }
         if (state === 'SkillCast') {
             if (this.currentAttack?.id === 'valor_strike') {
                 const total = this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery;
                 const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
-                if (p < 0.45) {
-                    // Blistering low forward rush
-                    return { cfg: KNIGHT_ANIMATIONS.slide_full, frame: Math.min(3, Math.floor((p / 0.45) * 4)) };
-                }
-                // Explosive upward cleave
-                return { cfg: KNIGHT_ANIMATIONS.attack1, frame: Math.min(3, 1 + Math.floor(((p - 0.45) / 0.55) * 3)) };
+                return { cfg: KNIGHT_ANIMATIONS.dash, frame: Math.min(1, Math.floor(p * 2)) };
             }
             if (this.currentAttack?.id === 'iron_breaker') {
                 const total = this.currentAttack.startup + this.currentAttack.active + this.currentAttack.recovery;
                 const p = Math.min(0.999, Math.max(0, sm.attackProgress / total));
-                // Frame 0-1 windup, Frame 2 violent ground slam, Frame 3-5 shockwave recovery
-                if (p < 0.35) {
-                    return { cfg: KNIGHT_ANIMATIONS.attack2, frame: Math.min(1, Math.floor((p / 0.35) * 2)) };
-                }
-                return { cfg: KNIGHT_ANIMATIONS.attack2, frame: Math.min(5, 2 + Math.floor(((p - 0.35) / 0.65) * 4)) };
+                return { cfg: KNIGHT_ANIMATIONS.crouch_attack, frame: Math.min(3, Math.floor(p * 4)) };
             }
             return { cfg: KNIGHT_ANIMATIONS.attack2, frame: Math.floor((this.animTime * 10) % 6) };
         }
@@ -1374,53 +1294,28 @@ export class Player {
     drawRageAura(ctx) {
         const t = this.animTime;
         ctx.save();
+        ctx.globalAlpha = 0.4;
 
-        // 1. Demonic eye glint / helmet visor trail
-        const eyeX = 6;
-        const eyeY = -58;
-        ctx.shadowColor = '#ff1100';
-        ctx.shadowBlur = 12;
-        ctx.fillStyle = '#ff3311';
-        ctx.beginPath();
-        ctx.arc(eyeX, eyeY, 2.5 + Math.sin(t * 12) * 0.8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Eye streak trailing backwards
-        const trailLen = 14 + Math.sin(t * 8) * 4;
-        const eyeGrad = ctx.createLinearGradient(eyeX, eyeY, eyeX - trailLen, eyeY - 2);
-        eyeGrad.addColorStop(0, 'rgba(255, 30, 0, 0.95)');
-        eyeGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
-        ctx.strokeStyle = eyeGrad;
+        const auraY = -this.height / 2;
+        ctx.strokeStyle = this.character.themeColor || '#ff4400';
         ctx.lineWidth = 3;
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = 18;
         ctx.beginPath();
-        ctx.moveTo(eyeX, eyeY);
-        ctx.lineTo(eyeX - trailLen, eyeY - 2);
+        ctx.arc(0, auraY, 44 + Math.sin(t * 5) * 4, 0, Math.PI * 2);
         ctx.stroke();
 
-        // 2. Burning demonic flame shroud licking up around armor
-        const flameCount = 7;
-        for (let i = 0; i < flameCount; i++) {
-            const fx = -22 + (i / (flameCount - 1)) * 44 + Math.sin(t * 10 + i * 1.5) * 4;
-            const flameH = 45 + Math.sin(t * 14 + i * 2.2) * 18;
-            const grad = ctx.createLinearGradient(fx, 0, fx, -flameH);
-            grad.addColorStop(0, 'rgba(255, 60, 0, 0.65)');
-            grad.addColorStop(0.5, 'rgba(255, 140, 0, 0.45)');
-            grad.addColorStop(1, 'rgba(255, 220, 50, 0)');
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 + t * 2.5;
+            const dist = 32 + Math.sin(t * 4 + i) * 8;
+            const px = Math.cos(angle) * dist;
+            const py = auraY + Math.sin(angle) * dist * 0.7;
 
-            ctx.fillStyle = grad;
+            ctx.fillStyle = this.character.themeColor || '#ffaa00';
             ctx.beginPath();
-            ctx.moveTo(fx - 7, 0);
-            ctx.quadraticCurveTo(fx + Math.sin(t * 12 + i) * 8, -flameH * 0.6, fx, -flameH);
-            ctx.quadraticCurveTo(fx - Math.sin(t * 12 + i) * 8, -flameH * 0.6, fx + 7, 0);
-            ctx.closePath();
+            ctx.arc(px, py, 3 + Math.sin(t * 8 + i) * 1.5, 0, Math.PI * 2);
             ctx.fill();
         }
-
-        // 3. Ground heat distortion & boiling magma beneath feet
-        ctx.fillStyle = 'rgba(255, 80, 0, 0.35)';
-        ctx.beginPath();
-        ctx.ellipse(0, 2, 28 + Math.sin(t * 6) * 4, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
 
         ctx.restore();
     }
