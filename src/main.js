@@ -34,16 +34,16 @@ let settingsReturnScreen = 'main-menu';
 // ============================================================================
 // CORE SYSTEMS
 // ============================================================================
-import { InputManager } from './core/InputManager.js';
-import { AudioManager } from './core/AudioManager.js';
-import { Camera } from './core/Camera.js';
-import { GameWorld } from './world/GameWorld.js';
-import { Player } from './player/Player.js';
-import { EnemyManager } from './enemies/EnemyManager.js';
-import { CombatSystem } from './combat/CombatSystem.js';
-import { VFXManager } from './effects/VFXManager.js';
-import { UIManager } from './ui/UIManager.js';
-import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js';
+import { InputManager } from './core/InputManager.js?v=20261009_5';
+import { AudioManager } from './core/AudioManager.js?v=20261009_5';
+import { Camera } from './core/Camera.js?v=20261009_5';
+import { GameWorld } from './world/GameWorld.js?v=20261009_5';
+import { Player } from './player/Player.js?v=20261009_5';
+import { EnemyManager } from './enemies/EnemyManager.js?v=20261009_5';
+import { CombatSystem } from './combat/CombatSystem.js?v=20261009_5';
+import { VFXManager } from './effects/VFXManager.js?v=20261009_5';
+import { UIManager } from './ui/UIManager.js?v=20261009_5';
+import { CemeteryHillsMenuRenderer } from './ui/CemeteryHillsMenuRenderer.js?v=20261009_5';
 
 // Global references
 export let canvas, ctx;
