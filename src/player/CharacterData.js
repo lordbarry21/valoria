@@ -49,7 +49,7 @@ export const CHARACTERS = {
                 key: 'R',
                 cooldown: 15.0,
                 icon: 'icon-valoria-rage',
-                desc: 'ULTIMATE: Erupt into roaring berserk flames (+100% damage & fire shockwaves).'
+                desc: 'ULTIMATE: Slam earth in a massive Hellfire Eruption (160 AoE dmg) and unleash 8s Berserk Mode (+80% dmg & flame waves).'
             }
         }
     },

@@ -92,7 +92,8 @@ export class CombatSystem {
 
     applyDamageToEnemy(enemy, attack) {
         const mult = player.character?.stats?.damageMultiplier || 1;
-        enemy.takeDamage(attack.damage * mult, attack.knockback, attack.hitStun, player.facing);
+        const dir = (attack.id === 'valoria_rage_blast') ? (enemy.x >= player.x ? 1 : -1) : player.facing;
+        enemy.takeDamage(attack.damage * mult, attack.knockback, attack.hitStun, dir);
     }
 
     applyDamageToPlayer(enemy) {

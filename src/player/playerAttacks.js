@@ -3,7 +3,7 @@
  * Timings are in seconds, hitStop in milliseconds, hitbox offsets relative to the player's feet.
  */
 
-const RAGE_DAMAGE_MULTIPLIER = 1.3;
+const RAGE_DAMAGE_MULTIPLIER = 1.8;
 
 const COMBO_ATTACKS = [
     { id: 'slash_1', damage: 15, startup: 0.1, active: 0.15, recovery: 0.2, hitbox: { x: 30, y: -40, width: 60, height: 40 }, knockback: 150, hitStun: 0.3, hitStop: 25, moveForce: 80, swingSound: 'sword_swing_light', impactSound: 'sword_impact_light', screenShake: 'light', rageGain: 12 },

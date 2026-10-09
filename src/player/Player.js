@@ -73,7 +73,7 @@ export class Player {
         this.maxStamina = 100;
         this.stamina = 100;
         this.maxRage = 100;
-        this.rage = 0;
+        this.rage = 100;
 
         this.staminaRegenRate = 25;
         this.staminaRegenDelay = 0.6;
@@ -207,7 +207,7 @@ export class Player {
         this.health = this.maxHealth;
         this.stamina = this.maxStamina;
         this.staminaRegenTimer = 0;
-        this.rage = 0;
+        this.rage = this.maxRage;
 
         this.comboCount = 0;
         this.comboTimer = 0;
@@ -589,6 +589,9 @@ export class Player {
 
         audioManager.playSFX(this.currentAttack.swingSound);
         vfxManager.createSwordSwing(this, this.currentAttack);
+        if (this.isRaging && this.characterId === 'knight') {
+            vfxManager.createFlameSlash(this, this.currentAttack);
+        }
     }
 
     startHeavyAttack() {
@@ -736,12 +739,29 @@ export class Player {
     useValoriaRage() {
         this.rage = 0;
         this.isRaging = true;
-        this.rageDuration = this.rageMaxDuration;
-        this.beginSkill(null);
+        this.rageDuration = 8.0;
+        this.beginSkill({
+            id: 'valoria_rage_blast',
+            damage: 160 * this.character.stats.damageMultiplier,
+            startup: 0.12,
+            active: 0.45,
+            recovery: 0.35,
+            hitbox: { x: 0, y: -60, width: 440, height: 140 },
+            knockback: 650,
+            hitStun: 0.85,
+            hitStop: 80,
+            moveForce: 0,
+            swingSound: 'sword_swing_heavy',
+            impactSound: 'sword_impact_heavy',
+            screenShake: 'heavy',
+            rageGain: 0
+        });
         audioManager.playSFX('valoria_rage_start');
-        vfxManager.createRageAura(this);
+        audioManager.playSFX('iron_breaker');
+        vfxManager.createValoriaRageBlast(this);
         camera.shakeHeavy();
-        this.notify('VALORIA RAGE!', '#ff4400');
+        camera.impactZoom(0.2, 0.45);
+        this.notify('VALORIA RAGE: HELLFIRE ERUPTION!', '#ff3300');
     }
 
     endRage() {
@@ -869,6 +889,19 @@ export class Player {
 
     takeDamage(amount, knockbackX = 0, knockbackY = 0) {
         if (this.isInvulnerable || this.isDead) return;
+
+        if (this.isRaging && this.characterId === 'knight') {
+            amount = Math.round(amount * 0.7);
+            this.health = Math.max(0, this.health - amount);
+            this.hurtTimer = 0.15;
+            this.invulnerabilityTimer = 0.25;
+            vfxManager.createPlayerHurt(this);
+            camera.shakeLight();
+            if (this.health <= 0) {
+                this.die();
+            }
+            return;
+        }
 
         this.health = Math.max(0, this.health - amount);
         this.hurtTimer = this.hurtDuration;

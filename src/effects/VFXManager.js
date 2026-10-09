@@ -692,6 +692,12 @@ export class VFXManager {
             case 'eclipse':
                 this.renderEclipse(ctx, effect, progress);
                 break;
+            case 'rageBlast':
+                this.renderRageBlast(ctx, effect, progress);
+                break;
+            case 'flameSlash':
+                this.renderFlameSlash(ctx, effect, progress);
+                break;
         }
     }
 
@@ -865,6 +871,119 @@ export class VFXManager {
         ctx.beginPath();
         ctx.arc(0, -40, pulseRadius, 0, Math.PI * 2);
         ctx.fill();
+
+        ctx.restore();
+    }
+
+    renderRageBlast(ctx, effect, progress) {
+        const { x, y } = effect;
+        const alpha = Math.max(0, 1 - progress);
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        // 1. Expanding Hellfire Ring / Crater Shockwave along the ground
+        const maxBlastRadius = 240;
+        const ringRadius = progress * maxBlastRadius;
+        const ringAlpha = alpha * 0.9;
+
+        // Ground fracture glow
+        ctx.fillStyle = `rgba(255, 60, 0, ${ringAlpha * 0.35})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, ringRadius, ringRadius * 0.35, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Shockwave rings
+        ctx.lineWidth = Math.max(2, (1 - progress) * 8);
+        ctx.strokeStyle = `rgba(255, 200, 50, ${ringAlpha})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, ringRadius, ringRadius * 0.35, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.lineWidth = Math.max(1, (1 - progress) * 14);
+        ctx.strokeStyle = `rgba(255, 40, 0, ${ringAlpha * 0.6})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, ringRadius * 0.85, ringRadius * 0.3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 2. Colossal Erupting Fire Pillar (Volcanic Geyser)
+        const pillarHeight = 280 * Math.sin(progress * Math.PI);
+        const pillarWidth = 140 * (1 - progress * 0.4);
+
+        if (pillarHeight > 0) {
+            const grad = ctx.createLinearGradient(0, 0, 0, -pillarHeight);
+            grad.addColorStop(0, `rgba(255, 255, 220, ${alpha})`);
+            grad.addColorStop(0.25, `rgba(255, 200, 30, ${alpha * 0.9})`);
+            grad.addColorStop(0.65, `rgba(255, 50, 0, ${alpha * 0.75})`);
+            grad.addColorStop(1, `rgba(180, 0, 0, 0)`);
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(-pillarWidth * 0.5, 0);
+            ctx.quadraticCurveTo(-pillarWidth * 0.7, -pillarHeight * 0.5, -pillarWidth * 0.2, -pillarHeight);
+            ctx.lineTo(pillarWidth * 0.2, -pillarHeight);
+            ctx.quadraticCurveTo(pillarWidth * 0.7, -pillarHeight * 0.5, pillarWidth * 0.5, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Inner core blast
+            const coreGrad = ctx.createLinearGradient(0, 0, 0, -pillarHeight * 0.7);
+            coreGrad.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+            coreGrad.addColorStop(0.4, `rgba(255, 240, 120, ${alpha * 0.95})`);
+            coreGrad.addColorStop(1, `rgba(255, 100, 0, 0)`);
+
+            ctx.fillStyle = coreGrad;
+            ctx.beginPath();
+            ctx.moveTo(-pillarWidth * 0.2, 0);
+            ctx.lineTo(-pillarWidth * 0.08, -pillarHeight * 0.7);
+            ctx.lineTo(pillarWidth * 0.08, -pillarHeight * 0.7);
+            ctx.lineTo(pillarWidth * 0.2, 0);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // 3. Fissure Lava Cracks branching left and right
+        const crackAlpha = alpha * 0.85;
+        ctx.strokeStyle = `rgba(255, 120, 20, ${crackAlpha})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        // Left crack
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-60 * progress, 3);
+        ctx.lineTo(-130 * progress, -2);
+        ctx.lineTo(-210 * progress, 4);
+        // Right crack
+        ctx.moveTo(0, 0);
+        ctx.lineTo(60 * progress, 2);
+        ctx.lineTo(130 * progress, -3);
+        ctx.lineTo(210 * progress, 3);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    renderFlameSlash(ctx, effect, progress) {
+        const { x, y, facing, size = 95 } = effect;
+        const alpha = Math.max(0, 1 - progress);
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(facing, 1);
+
+        // Blazing curved arc
+        for (let i = 0; i < 3; i++) {
+            const arcRadius = size + i * 16;
+            const startAngle = -Math.PI * 0.65;
+            const endAngle = startAngle + (0.4 + progress * 0.8) * Math.PI;
+
+            ctx.beginPath();
+            ctx.arc(10, -35, arcRadius, startAngle, endAngle);
+            ctx.lineWidth = (1 - progress) * (14 - i * 3);
+            ctx.strokeStyle = i === 0
+                ? `rgba(255, 255, 200, ${alpha})`
+                : (i === 1 ? `rgba(255, 140, 20, ${alpha * 0.85})` : `rgba(255, 30, 0, ${alpha * 0.6})`);
+            ctx.stroke();
+        }
 
         ctx.restore();
     }
@@ -1161,6 +1280,75 @@ export class VFXManager {
 
         // Golden impact flash
         this.flashScreen('#ffd700', 0.15, 0.25);
+    }
+
+    createValoriaRageBlast(player) {
+        this.rageAuraTarget = player;
+        this.rageAuraTimer = 0;
+        this.flashScreen('#ff2200', 0.45, 0.4);
+
+        // Main blast effect
+        this.effects.push({
+            type: 'rageBlast',
+            x: player.x,
+            y: player.y,
+            life: 0.65,
+            maxLife: 0.65
+        });
+
+        // Massive eruption particles
+        for (let i = 0; i < 60; i++) {
+            const angle = -Math.PI + Math.random() * Math.PI; // All upward directions
+            const speed = 160 + Math.random() * 320;
+            const colorRoll = Math.random();
+            const color = colorRoll > 0.6 ? '#ff2a00' : (colorRoll > 0.25 ? '#ff9900' : '#ffee66');
+
+            this.particles.push({
+                x: player.x + (Math.random() - 0.5) * 80,
+                y: player.y - 15,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 160,
+                size: 4 + Math.random() * 7,
+                color,
+                life: 0.45 + Math.random() * 0.4,
+                maxLife: 0.85,
+                gravity: 350
+            });
+        }
+
+        // Heavy impact dust & stone chunks
+        this.createImpact(player.x, player.y - 30, 'sword_impact_heavy');
+        this.createDust(player.x - 60, player.y);
+        this.createDust(player.x + 60, player.y);
+    }
+
+    createFlameSlash(player, attack) {
+        this.effects.push({
+            type: 'flameSlash',
+            x: player.x,
+            y: player.y,
+            facing: player.facing,
+            size: 105,
+            life: 0.22,
+            maxLife: 0.22
+        });
+
+        // Flame sparks trailing forward
+        for (let i = 0; i < 14; i++) {
+            const angle = -0.3 + (Math.random() - 0.5) * 0.8;
+            const speed = 180 + Math.random() * 220;
+            this.particles.push({
+                x: player.x + player.facing * 40,
+                y: player.y - 35 + (Math.random() - 0.5) * 30,
+                vx: player.facing * Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 40,
+                size: 3 + Math.random() * 4,
+                color: Math.random() > 0.4 ? '#ff4400' : '#ffcc00',
+                life: 0.25 + Math.random() * 0.2,
+                maxLife: 0.45,
+                gravity: 120
+            });
+        }
     }
 
     createRageAura(player) {
