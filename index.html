@@ -306,8 +306,15 @@
                     </div>
                 </div>
 
-                <!-- Quick Fullscreen Button -->
-                <button id="btn-quick-fullscreen" type="button" title="Fullscreen (Press F)">⛶</button>
+                <!-- Quick Fullscreen Button (Matching Main Menu) -->
+                <button id="btn-quick-fullscreen" class="menu-fs-btn in-game-fs-btn" type="button" title="Toggle Fullscreen (F)" aria-label="Toggle Fullscreen">
+                    <svg class="fs-icon icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                    <svg class="fs-icon icon-compress hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 10h4a2 2 0 0 0 2-2V4m10 6h-4a2 2 0 0 1-2-2V4m0 16v-4a2 2 0 0 1 2-2h4M4 14h4a2 2 0 0 1 2 2v4"/>
+                    </svg>
+                </button>
             </div>
 
             <!-- ==================== PAUSE MENU ==================== -->

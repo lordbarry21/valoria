@@ -272,7 +272,11 @@ function setupUIHandlers() {
     bindVolumeSlider('sfx-volume', 'sfx-value', v => audioManager.setSFXVolume(v));
 
     document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
-    document.getElementById('btn-quick-fullscreen')?.addEventListener('click', toggleFullscreen);
+    document.getElementById('btn-quick-fullscreen')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        audioManager.playSFX('ui_click');
+        toggleFullscreen();
+    });
     document.getElementById('btn-menu-fullscreen')?.addEventListener('click', (e) => {
         e.stopPropagation();
         audioManager.playSFX('ui_click');
@@ -419,22 +423,22 @@ function syncFullscreenLabel() {
     const settingsBtn = document.getElementById('btn-fullscreen');
     if (settingsBtn) settingsBtn.textContent = isFs ? 'ON' : 'OFF';
 
-    // Toggle menu fullscreen button icon & tooltip
-    const menuFsBtn = document.getElementById('btn-menu-fullscreen');
-    if (menuFsBtn) {
-        menuFsBtn.title = isFs ? 'Exit Fullscreen (F)' : 'Toggle Fullscreen (F)';
-        menuFsBtn.setAttribute('aria-label', isFs ? 'Exit Fullscreen' : 'Toggle Fullscreen');
-        const iconExpand = menuFsBtn.querySelector('.fs-icon.icon-expand');
-        const iconCompress = menuFsBtn.querySelector('.fs-icon.icon-compress');
+    // Synchronize both Main Menu and In-Game HUD fullscreen button icons & tooltips
+    const fsButtons = [
+        document.getElementById('btn-menu-fullscreen'),
+        document.getElementById('btn-quick-fullscreen')
+    ];
+
+    for (const btn of fsButtons) {
+        if (!btn) continue;
+        btn.title = isFs ? 'Exit Fullscreen (F)' : 'Toggle Fullscreen (F)';
+        btn.setAttribute('aria-label', isFs ? 'Exit Fullscreen' : 'Toggle Fullscreen');
+        const iconExpand = btn.querySelector('.fs-icon.icon-expand');
+        const iconCompress = btn.querySelector('.fs-icon.icon-compress');
         if (iconExpand && iconCompress) {
             iconExpand.classList.toggle('hidden', isFs);
             iconCompress.classList.toggle('hidden', !isFs);
         }
-    }
-
-    const quickFsBtn = document.getElementById('btn-quick-fullscreen');
-    if (quickFsBtn) {
-        quickFsBtn.title = isFs ? 'Exit Fullscreen (F)' : 'Fullscreen (F)';
     }
 }
 
