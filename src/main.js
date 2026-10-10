@@ -271,6 +271,51 @@ function setupUIHandlers() {
     bindVolumeSlider('music-volume', 'music-value', v => audioManager.setMusicVolume(v));
     bindVolumeSlider('sfx-volume', 'sfx-value', v => audioManager.setSFXVolume(v));
 
+    const syncVolumeSliders = () => {
+        const masterInput = document.getElementById('master-volume');
+        const musicInput = document.getElementById('music-volume');
+        const sfxInput = document.getElementById('sfx-volume');
+
+        if (masterInput) {
+            const val = Math.round(audioManager.masterVolume * 100);
+            masterInput.value = val;
+            const lbl = document.getElementById('master-value');
+            if (lbl) lbl.textContent = `${val}%`;
+        }
+        if (musicInput) {
+            const val = Math.round(audioManager.musicVolume * 100);
+            musicInput.value = val;
+            const lbl = document.getElementById('music-value');
+            if (lbl) lbl.textContent = `${val}%`;
+        }
+        if (sfxInput) {
+            const val = Math.round(audioManager.sfxVolume * 100);
+            sfxInput.value = val;
+            const lbl = document.getElementById('sfx-value');
+            if (lbl) lbl.textContent = `${val}%`;
+        }
+    };
+    syncVolumeSliders();
+
+    const toggleSound = (e) => {
+        e?.stopPropagation?.();
+        audioManager.toggleMute();
+        audioManager.playSFX('ui_click');
+        syncAudioUI();
+    };
+
+    document.getElementById('btn-menu-audio')?.addEventListener('click', toggleSound);
+    document.getElementById('btn-quick-audio')?.addEventListener('click', toggleSound);
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyM') {
+            audioManager.toggleMute();
+            syncAudioUI();
+        }
+    });
+
+    syncAudioUI();
+
     document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
     document.getElementById('btn-quick-fullscreen')?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -438,6 +483,26 @@ function syncFullscreenLabel() {
         if (iconExpand && iconCompress) {
             iconExpand.classList.toggle('hidden', isFs);
             iconCompress.classList.toggle('hidden', !isFs);
+        }
+    }
+}
+
+function syncAudioUI() {
+    const isMuted = audioManager?.isMuted ?? false;
+    const audioButtons = [
+        document.getElementById('btn-menu-audio'),
+        document.getElementById('btn-quick-audio')
+    ];
+
+    for (const btn of audioButtons) {
+        if (!btn) continue;
+        btn.title = isMuted ? 'Unmute Sound (M)' : 'Mute Sound (M)';
+        btn.setAttribute('aria-label', isMuted ? 'Unmute Sound' : 'Mute Sound');
+        const iconOn = btn.querySelector('.audio-icon.icon-audio-on');
+        const iconOff = btn.querySelector('.audio-icon.icon-audio-off');
+        if (iconOn && iconOff) {
+            iconOn.classList.toggle('hidden', isMuted);
+            iconOff.classList.toggle('hidden', !isMuted);
         }
     }
 }

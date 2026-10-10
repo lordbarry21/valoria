@@ -723,9 +723,17 @@ body {
     pointer-events: auto;
     display: flex;
     align-items: center;
+    gap: 10px;
     z-index: 10;
     transition: opacity 0.25s ease, transform 0.25s ease;
     animation: fadeInDown 0.8s var(--ease-out) forwards;
+}
+
+.audio-icon {
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+    transition: transform 0.2s ease;
 }
 
 .menu-fs-btn {
@@ -2150,13 +2158,16 @@ body {
     pointer-events: none;
 }
 
-/* Quick Fullscreen Button in HUD (Matching Main Menu style exactly) */
-#btn-quick-fullscreen.in-game-fs-btn {
+/* Quick Controls Cluster in HUD (Matching Main Menu style exactly) */
+.hud-top-right-cluster {
     position: absolute;
     top: 20px;
     right: 24px;
     pointer-events: auto;
     z-index: 95;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 /* ============================================================================
